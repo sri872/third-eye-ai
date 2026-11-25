@@ -11,7 +11,7 @@ from typing import Any, Dict, List, Optional, Tuple
 
 from core.rag.facility_classification import (
     CATEGORY_PRIORITY,
-    classify_facility,
+    classify_hospital_record,
 )
 from core.rag.index import HospitalIndex
 from core.schemas import Hospital, IncidentReport
@@ -317,7 +317,7 @@ class HospitalRetriever:
             incident_context_text += f" {' '.join(incident.injuries)} {' '.join(incident.hazards)}"
 
         for hospital, _legacy_score in raw_candidates:
-            classification = classify_facility(hospital.name)
+            classification = classify_hospital_record(hospital)
             if hospital.excluded_from_dispatch_reason is not None or not classification.dispatch_eligible:
                 # Never rank architecture departments, universities, shops, offices,
                 # clinics or other unrelated facilities as emergency destinations.
