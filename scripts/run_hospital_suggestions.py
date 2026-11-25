@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
-"""Zero-typing RAG hospital suggestions runner for Project Third-Eye (Phase 5).
+"""Zero-typing deterministic hospital suggestions runner for Project Third-Eye (Phase 5).
 
 Automated workflow:
 1. Loads real OpenStreetMap healthcare facilities (116 hospitals/clinics within 25 km of Phagwara).
-2. Builds FAISS semantic index using 'all-MiniLM-L6-v2'.
+2. Ranks eligible facilities using source tags, facility category and straight-line distance.
 3. Assigns Phase 4 incidents (road_1, road_2, road_3) to simulated demo locations from dropdown config.
 4. Formulates clinical need queries, retrieves candidates, and re-ranks by straight-line Haversine distance.
 5. Surfaces top 3 suggested hospitals with transparent rationale, verified emergency dispatch numbers,
@@ -39,8 +39,8 @@ def load_demo_locations() -> list:
 
 def main() -> int:
     print("==================================================================")
-    print("Project Third-Eye | RAG Hospital Suggestions & Emergency Dispatch (Phase 5)")
-    print("Embedding Stack  : sentence-transformers ('all-MiniLM-L6-v2') + FAISS L2/IP")
+    print("Project Third-Eye | Hospital Suggestions & Emergency Dispatch (Phase 5)")
+    print("Ranking Stack    : deterministic source-tag, category and Haversine-distance rules")
     print("Geographic Data  : OpenStreetMap Overpass (25 km radius around Phagwara, Punjab)")
     print("Attribution      : © OpenStreetMap contributors (ODbL 1.0)")
     print("Emergency Stack  : Verified Govt. of India Emergency Services (112, 108, 101, 100)")
@@ -56,11 +56,11 @@ def main() -> int:
     print(f"      With Emergency Tag    : {stats['emergency_count']} ({stats['emergency_percentage']}%)")
     print(f"      With Specialties Tag  : {stats['specialties_count']} ({stats['specialties_percentage']}%)")
 
-    # 2. Build FAISS semantic index
-    print("\n[2/4] Initializing FAISS semantic embedding index...")
+    # 2. Prepare deterministic hospital ranking
+    print("\n[2/4] Preparing deterministic hospital ranking...")
     hospital_index = HospitalIndex(hospitals)
     retriever = HospitalRetriever(hospital_index)
-    print(f"      FAISS index active with {hospital_index.index.ntotal} facility profiles (dim={hospital_index.dimension}).")
+    print(f"      Candidate records ready: {len(hospital_index.hospitals)} (no embeddings or vector index).")
 
     # 3. Load demo locations
     print("\n[3/4] Loading simulated demo incident locations from dropdown config...")
@@ -106,7 +106,7 @@ def main() -> int:
         )
 
         # Retrieve hospital suggestions
-        rag_result = retriever.retrieve_suggestions(
+        hospital_result = retriever.retrieve_suggestions(
             incident_lat=location["latitude"],
             incident_lon=location["longitude"],
             incident=fused_report,
@@ -148,7 +148,7 @@ def main() -> int:
             print(f"      Emergency Dept  : {sug['emergency']}")
             print(f"      Specialties     : {sug['specialties']}")
             print(f"      Match Rationale : {sug['why_suggested']}")
-            print(f"      Ranking Score   : {sug['combined_score']:.4f} (Semantic: {sug['semantic_score']:.4f}, Proximity: {sug['proximity_score']:.4f})")
+            print("      Ranking Score   : {:.4f} (Proximity: {:.4f}; deterministic heuristic)".format(sug["combined_score"], sug["proximity_score"]))
             print(f"      Bed Status      : bed availability: {sug['bed_availability']}")
             print(f"      Attribution     : {sug['attribution']}")
         print()
@@ -159,8 +159,8 @@ def main() -> int:
     print("   distance and transit time will be higher based on road network conditions.")
     print("2. OpenStreetMap does not provide real-time hospital bed availability or")
     print("   live ambulance telemetry. 'bed availability: not determined' is enforced.")
-    print("3. When OpenStreetMap specialty tags are sparse, retrieval gracefully balances")
-    print("   facility profile relevance and geographic proximity.")
+    print("3. When OpenStreetMap specialty tags are sparse, deterministic ranking uses")
+    print("   source-tagged emergency status, facility category, and geographic proximity.")
     print("==================================================================")
     return 0
 
