@@ -13,7 +13,7 @@ RAG_SAMPLE_QUESTIONS = (
     "What does the Indian Good Samaritan guidance say about helping a road-crash victim?",
     "What protections are described for a Good Samaritan at a hospital?",
     "What is the difference between India's 108 and 102 ambulance services?",
-    "What does the WHO Global Plan recommend for post-crash emergency response?",
+    "What is the purpose of the WHO Global Plan for Road Safety 2021–2030?",
     "What does the Motor Vehicles Act say about Good Samaritan protection?",
 )
 
