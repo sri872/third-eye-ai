@@ -114,6 +114,41 @@ def test_deterministic_proximity_and_emergency_tag_ranking():
 
 
 # 3. Hospital Schema Validation Test
+def test_priority_order_can_outrank_secondary_proximity_score():
+    """Source emergency priority is primary; the proximity score is only a later tie-break."""
+    far_emergency_hospital = Hospital(
+        hospital_id="far-emergency",
+        name="Far General Hospital",
+        latitude=31.4500,
+        longitude=75.9500,
+        emergency="yes",
+        data_source="REAL",
+    )
+    nearby_trauma_centre = Hospital(
+        hospital_id="near-trauma",
+        name="Nearby Trauma Centre",
+        latitude=31.2201,
+        longitude=75.7701,
+        data_source="REAL",
+    )
+    result = HospitalRetriever(
+        HospitalIndex([far_emergency_hospital, nearby_trauma_centre])
+    ).retrieve_suggestions(
+        incident_lat=31.2200,
+        incident_lon=75.7700,
+        query_override="general emergency",
+        final_top_k=2,
+    )
+
+    suggestions = result["suggestions"]
+    assert result["ranking_method"].startswith("OSM emergency-tag tier first")
+    assert suggestions[0]["hospital"].hospital_id == "far-emergency"
+    assert suggestions[1]["hospital"].hospital_id == "near-trauma"
+    assert suggestions[0]["combined_score"] < suggestions[1]["combined_score"]
+    assert suggestions[0]["ranking_priority"]["emergency_tag_tier"] == 0
+    assert suggestions[1]["ranking_priority"]["emergency_tag_tier"] == 1
+
+
 def test_hospital_schema_validation():
     # Valid Hospital with None beds
     h = Hospital(
