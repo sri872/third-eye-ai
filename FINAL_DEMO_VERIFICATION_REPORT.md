@@ -1,5 +1,8 @@
 # THIRD EYE AI — Final Demonstration Verification Report
 
+> **Architecture supersession (2026-11-25):** This report records measurements from the earlier hospital retrieval implementation. The FAISS/SentenceTransformers vector-search path has been removed on branch `remove-rag-retrieval`; the current branch uses deterministic OpenStreetMap facility classification, source-reported emergency tags, facility category, and Haversine distance. Historical measurements below do not validate the replacement ranking. See [docs/SYSTEM_CARD.md](docs/SYSTEM_CARD.md) for the current architecture.
+
+
 **Repository:** <https://github.com/sri872/third-eye-ai> (public)
 **Workspace:** `~/Projects/third-eye-v2`
 **Date:** 2026-11-25
