@@ -749,11 +749,14 @@ def _vision_result(
     media_sha256: str,
     orientation: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
-    verdict, severity, model_status = determine_verdict(score)
-    # The model thresholds are defined for dashcam video frames. For a still image
-    # the verdict is reported, but scene status is NOT DETERMINED rather than
-    # "normal_flow": an out-of-domain still cannot confirm normal traffic.
-    status = STILL_IMAGE_STATUS if media_type == "image" else model_status
+    raw_model_verdict, raw_model_severity, model_status = determine_verdict(score)
+    # The classifier was trained on dashcam video frames, not standalone photos.
+    # Never present its still-image output as a final accident/no-accident decision.
+    # Preserve the raw classifier result for transparent diagnostics only.
+    is_out_of_domain_still = media_type == "image"
+    verdict = STILL_IMAGE_STATUS if is_out_of_domain_still else raw_model_verdict
+    severity = "uncertain" if is_out_of_domain_still else raw_model_severity
+    status = STILL_IMAGE_STATUS if is_out_of_domain_still else model_status
     vehicle_reports, ocr_evidence = _build_vehicle_reports(image, detections, stem)
     occupant_reports, occupant_counts = build_occupant_reports(detections, vehicle_reports)
     features = extract_accident_features(
@@ -761,7 +764,8 @@ def _vision_result(
     )
     reasons = (
         f"Media type: {media_type}; "
-        f"Classifier score: {score:.4f} -> Verdict: {verdict}; "
+        f"Raw classifier score: {score:.4f} -> Model output: {raw_model_verdict}; "
+        f"Scene assessment: {verdict}; "
         f"Vehicles detected: {len([d for d in detections if get_vehicle_type(d.label)])}; "
         f"Persons near vehicles: {compute_persons_near_vehicles(detections)}; "
         f"Geometric overlap context (explanatory only, not a verdict): "
@@ -791,6 +795,8 @@ def _vision_result(
         "detections": detections,
         "score": round(score, 4),
         "verdict": verdict,
+        "raw_model_verdict": raw_model_verdict,
+        "raw_model_severity": raw_model_severity,
         "severity": severity,
         "status": status,
         "method": "TRAINED_MODEL",
@@ -1425,15 +1431,16 @@ with accident_tab:
                 "outside that training domain: the score below is an uncalibrated ranking "
                 "signal, not proof of an accident or of normal traffic. Human review is required."
             )
-            st.markdown("**Model output (out-of-domain still image):**")
+            st.markdown("**Scene assessment (primary result):**")
             _badge("REAL")
-            tagged("Model verdict", result["verdict"], "REAL")
-            tagged("Uncalibrated model score", f"{result['score']:.4f}", "REAL")
-            tagged("Method", result["method"], "REAL")
-            st.markdown("**Scene assessment (not a model output):**")
-            _badge("REAL")
+            tagged("Assessment", result["verdict"], "REAL")
             tagged("Scene status", result["status"], "REAL")
             tagged("Severity", result["severity"], "REAL")
+            st.markdown("**Raw classifier output (not reliable for a still-image decision):**")
+            _badge("REAL")
+            tagged("Raw model output", result["raw_model_verdict"], "REAL")
+            tagged("Uncalibrated model score", f"{result['score']:.4f}", "REAL")
+            tagged("Method", result["method"], "REAL")
             tagged("Reasoning context", result["accident_event"].reasons, "REAL")
     st.caption("Held-out test metrics from models/accident_classifier_metrics.json")
     tagged(
