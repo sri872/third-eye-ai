@@ -1,8 +1,10 @@
 # System Card — Project Third-Eye (`third-eye-v2`)
 
-**Date**: 2026-11-24  
-**Scope**: Local prototype for manual-upload accident inspection, forensic-style vehicle/occupant reporting, hospital suggestion, and simulated emergency dispatch.  
-**Status**: Phase 10 review build. This is a research/demo prototype — **not** a certified safety system and **not** connected to any emergency service.
+**Date**: 2026-11-25
+
+**Scope**: Local prototype for manual-upload accident inspection, forensic-style vehicle/occupant reporting, hospital suggestion, and simulated emergency dispatch.
+
+**Status**: Post-RAG-removal review build. Hospital suggestions use `core/hospitals/` deterministic ranking. This is a research/demo prototype — **not** a certified safety system and **not** connected to any emergency service.
 
 ---
 
@@ -17,7 +19,7 @@
 | Caller NLP / fusion | spaCy `en_core_web_sm`, rule-based extraction | Simulated call text + vision result | Occupant report, fused incident summary |
 | Hospital suggestion | Deterministic OSM facility classification and source-tag/category/Haversine ranking | Incident location + caller-reported needs | Ranked real OSM facilities with transparent heuristic score; no semantic retrieval |
 | Dispatch & routing | Offline OSM graph + admissible A* + deterministic trajectory simulation | 4 simulated incidents, 6 simulated ambulances | `data/outputs/dispatch_summary.json`, route PNG/GeoJSON, SQLite `route_results` |
-| UI | Streamlit single-page dashboard, manual upload only | User-selected file + dropdowns | Tabs for Scene, Vehicles, Accident check, Caller, Hospitals, Dispatch |
+| UI | Streamlit single-page dashboard, manual upload only | User-selected file + dropdowns | Tabs for `1. Scene`, `2. Vehicles`, `3. Accident check`, `4. Incident report`, `5. Hospitals & emergency numbers`, `6. Dispatch` |
 
 Every persisted record carries an explicit `data_source` of `REAL` or `SIMULATED`. Model confidences are real or `None`; rule scores are labelled as heuristics. No YOLO / Ultralytics component is used anywhere.
 
@@ -47,12 +49,13 @@ Confusion matrix (rows = true negative / true positive, columns = predicted nega
 
 ## 3. Data provenance — REAL vs SIMULATED
 
-- **REAL**: cached OpenStreetMap road graph (3,247 nodes, 8,582 edges, ~1,466 km, `© OpenStreetMap contributors`); 116 OSM healthcare facilities in the corridor; detector/OCR/model outputs on uploaded media; all held-out video scores in `models/accident_classifier_metrics.json`.
+- **REAL**: cached OpenStreetMap road graph (3,247 nodes, 8,582 edges, ~1,466 km, `© OpenStreetMap contributors`); 116 raw / 115 deduplicated OSM healthcare facilities in the corridor; detector/OCR/model outputs on uploaded media; all held-out video scores in `models/accident_classifier_metrics.json`.
 - **SIMULATED**: incident coordinates (`config/demo_incident_locations.json`), 6 ambulance positions and speeds (`config/simulated_ambulances.json`), replay trajectories, and the choice of severity for the demo scenarios. Dispatch ETAs are computed on the real road graph with assumed speeds and **no live traffic**.
 - **External**: Google Maps links in the Dispatch tab leave the app; they are not the project's own route.
 
-### Hospital retrieval architecture
-Hospital suggestions use deterministic source-backed facility classification, source-reported emergency tags, facility category, and Haversine distance. Caller keywords are mapped to an explanatory assumed-needs string only; they are not embedded or semantically searched. FAISS, SentenceTransformers, embedding downloads, and vector retrieval are not part of the current application. The legacy `core/rag/` import directory is retained temporarily to avoid breaking existing imports; it contains geospatial/hospital utilities, not a RAG pipeline.
+### Hospital ranking architecture
+Hospital suggestions use `core/hospitals/` with deterministic source-backed facility classification, source-reported emergency tags, facility category, and Haversine distance. Caller keywords are mapped to an explanatory assumed-needs string only; they are not embedded or semantically searched. FAISS, SentenceTransformers, hospital embedding generation, vector indexes, and vector retrieval are not part of the current application. The former `core/rag/` namespace has been removed; frozen ResNet-18 visual embeddings remain only for the accident classifier.
+
 ### OpenStreetMap coverage limits (from `docs/phase5_report.md`)
 
 Of 116 facilities: 17 (14.66%) have a phone tag, 3 (2.59%) have `emergency=yes/no`, and 2 (1.72%) have `healthcare:speciality`. Trauma suitability in dispatch is therefore a **name-based rule**, not verified clinical data.

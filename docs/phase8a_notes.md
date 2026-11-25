@@ -1,5 +1,7 @@
 # Phase 8a-2 Notes — Manual-Upload Streamlit Dashboard
 
+> **Historical notes (superseded 2026-11-25):** These notes describe an earlier UI cache design that referenced FAISS and `core.rag`. Those retrieval components and the old namespace have been removed; current hospital ranking is in `core/hospitals/`. See [SYSTEM_CARD.md](SYSTEM_CARD.md).
+
 ## Scope and file ownership
 
 Created/edited only:

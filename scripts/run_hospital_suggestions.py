@@ -6,7 +6,7 @@ Automated workflow:
 2. Orders eligible facilities by source-reported emergency-tag tier, facility category, then a
    secondary straight-line proximity heuristic.
 3. Assigns Phase 4 still-image incidents (road_1, road_2, road_3) to simulated demo locations.
-4. Formulates caller-keyword needs and retrieves candidates using the deterministic priority order.
+4. Formulates caller-keyword needs and orders listed candidates using the deterministic priority order.
 5. Surfaces top 3 suggested hospitals with transparent rationale, verified emergency dispatch numbers,
    and strict clinical honesty notes ("bed availability: not determined").
 """
@@ -26,10 +26,10 @@ from core.ml.accident_analyzer import analyze
 from core.nlp.caller_extraction import extract_caller_info
 from core.nlp.fusion import fuse_incident_evidence
 from core.nlp.occupant_report import build_occupant_reports
-from core.rag.emergency_numbers import get_emergency_numbers
-from core.rag.hospital_data import fetch_or_load_hospitals
-from core.rag.index import HospitalIndex
-from core.rag.retriever import HospitalRetriever
+from core.hospitals.catalog import HospitalCatalog
+from core.hospitals.data import fetch_or_load_hospitals
+from core.hospitals.emergency_numbers import get_emergency_numbers
+from core.hospitals.ranking import HospitalRanker
 
 
 def load_demo_locations() -> list:
@@ -59,9 +59,9 @@ def main() -> int:
 
     # 2. Prepare deterministic hospital ranking
     print("\n[2/4] Preparing deterministic hospital ranking...")
-    hospital_index = HospitalIndex(hospitals)
-    retriever = HospitalRetriever(hospital_index)
-    print(f"      Candidate records ready: {len(hospital_index.hospitals)} (no embeddings or vector index).")
+    catalog = HospitalCatalog(hospitals)
+    ranker = HospitalRanker(catalog)
+    print(f"      Candidate records ready: {len(catalog)} (no model-based text search or vector index).")
 
     # 3. Load demo locations
     print("\n[3/4] Loading simulated demo incident locations from dropdown config...")
@@ -120,8 +120,8 @@ def main() -> int:
             save_to_db=False,
         )
 
-        # Retrieve hospital suggestions
-        hospital_result = retriever.retrieve_suggestions(
+        # Rank hospital suggestions
+        hospital_result = ranker.rank_suggestions(
             incident_lat=location["latitude"],
             incident_lon=location["longitude"],
             incident=fused_report,
@@ -157,7 +157,7 @@ def main() -> int:
         for contact in emergency_contacts:
             print(f"  * {contact['number']}: {contact['service']} - {contact['official_source']} ({contact['source_url']})")
         print("------------------------------------------------------------------")
-        print(f"Assumed Needs (rule-based from caller keywords): \"{hospital_result['query_used']}\"")
+        print(f"Assumed Needs (rule-based from caller keywords): \"{hospital_result['assumed_needs']}\"")
         print("TOP 3 SUGGESTED HEALTHCARE FACILITIES:")
         print(f"Ordering Basis : {hospital_result['ranking_method']}")
         for rank, sug in enumerate(hospital_result["suggestions"], 1):

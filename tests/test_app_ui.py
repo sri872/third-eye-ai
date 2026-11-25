@@ -65,8 +65,7 @@ def test_no_upload_runs_no_model(monkeypatch: pytest.MonkeyPatch) -> None:
     import core.nlp.incident_text as incident_text
     import core.nlp.occupant_report as occupant_report
     import core.ocr.plate_reader as plate_reader
-    import core.rag.hospital_data as hospital_data
-    import core.rag.index as rag_index
+    import app.main as app_main
 
     forbidden_calls = (
         (detector, "detect"),
@@ -81,9 +80,9 @@ def test_no_upload_runs_no_model(monkeypatch: pytest.MonkeyPatch) -> None:
         (occupant_report, "build_occupant_reports"),
         (incident_text, "generate_incident_summary"),
         (fusion, "fuse_incident_evidence"),
-        (hospital_data, "fetch_or_load_hospitals"),
-        (rag_index, "HospitalIndex"),
-        (rag_index, "get_embedding_model"),
+        (app_main, "fetch_or_load_hospitals"),
+        (app_main, "HospitalCatalog"),
+        (app_main, "HospitalRanker"),
     )
 
     def forbidden(name: str):

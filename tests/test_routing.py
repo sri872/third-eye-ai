@@ -16,10 +16,10 @@ import random
 import networkx as nx
 import pytest
 
-from core.rag.hospital_data import deduplicate_hospitals
-from core.rag.retriever import (
+from core.hospitals.data import deduplicate_hospitals
+from core.hospitals.ranking import (
+    describe_assumed_needs,
     evaluate_facility_suitability,
-    formulate_retrieval_query,
     haversine_distance_km,
 )
 from core.routing.astar import astar_shortest_path, extract_route_coordinates
@@ -260,7 +260,7 @@ class TestTask0ReviewFixes:
 
     def test_hospital_deduplication(self):
         """Verify that nearby duplicate hospitals within 150m are merged."""
-        from core.rag.hospital_data import parse_osm_element_to_hospital
+        from core.hospitals.data import parse_osm_element_to_hospital
         hospitals_path = PROJECT_ROOT / "data" / "hospitals_osm.json"
         with open(hospitals_path, "r", encoding="utf-8") as f:
             raw_elements = json.load(f).get("elements", [])
@@ -293,9 +293,9 @@ class TestTask0ReviewFixes:
         assert rule is not None
         assert "Down-ranked by suitability rule" in rule
 
-    def test_retrieval_query_assumed_needs_format(self):
-        """Verify retrieval query format strictly says ASSUMED NEEDS."""
-        q = formulate_retrieval_query(injuries=["broken arm", "bleeding"])
+    def test_assumed_needs_format(self):
+        """Verify the explanatory assumed-needs string strictly says ASSUMED NEEDS."""
+        q = describe_assumed_needs(injuries=["broken arm", "bleeding"])
         assert q.startswith("ASSUMED NEEDS (rule-based mapping from caller keywords):")
         assert "emergency / trauma department" in q
 
@@ -365,7 +365,7 @@ class TestPhase6bMedicalValidityRule:
 
     def test_regression_lpu_architecture_never_selected(self, road_graph):
         """Regression test: osm-way-832187216 (LPU Architecture Deisgn) must never be selected."""
-        from core.rag.hospital_data import parse_osm_element_to_hospital, validate_hospital_for_dispatch
+        from core.hospitals.data import parse_osm_element_to_hospital, validate_hospital_for_dispatch
         hospitals_path = PROJECT_ROOT / "data" / "hospitals_osm.json"
         with open(hospitals_path, "r", encoding="utf-8") as f:
             raw_elements = json.load(f).get("elements", [])
@@ -399,7 +399,7 @@ class TestPhase6bMedicalValidityRule:
 
     def test_exclusion_reasons_and_categories(self):
         """Test transparent classification and reason tracking across facility types."""
-        from core.rag.hospital_data import validate_hospital_for_dispatch
+        from core.hospitals.data import validate_hospital_for_dispatch
 
         # Non-medical building
         h_non_med = Hospital(

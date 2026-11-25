@@ -103,12 +103,12 @@ from core.ocr.plate_reader import (
     preprocess_plate_region,
     read_plate_evidence,
 )
-from core.rag.emergency_numbers import get_emergency_numbers
-from core.rag.facility_classification import dispatch_eligible_facilities
-from core.rag.hospital_data import fetch_or_load_hospitals
-from core.rag.index import HospitalIndex
-from core.rag.location_consistency import compare_locations
-from core.rag.retriever import HospitalRetriever, formulate_retrieval_query
+from core.hospitals.catalog import HospitalCatalog
+from core.hospitals.classification import dispatch_eligible_facilities
+from core.hospitals.data import fetch_or_load_hospitals
+from core.hospitals.emergency_numbers import get_emergency_numbers
+from core.hospitals.location_consistency import compare_locations
+from core.hospitals.ranking import HospitalRanker, describe_assumed_needs
 from core.schemas import AccidentEvent, Detection, VehicleReport
 
 DB_PATH = REPO_ROOT / "db" / "third_eye.db"
@@ -194,7 +194,7 @@ def tagged_plain(label: str, value: Any, source: str) -> None:
 
 
 def render_emergency_numbers(urgency: Any, hazards: Any) -> None:
-    """Emergency numbers from core/rag/emergency_numbers.py, shown as plain text."""
+    """Emergency numbers from core/hospitals/emergency_numbers.py, shown as plain text."""
     st.text("This app does not place calls; dial from your phone.")
     for contact in get_emergency_numbers(urgency=urgency, hazards=hazards):
         tagged_plain(
@@ -293,12 +293,12 @@ def _ocr_reader():
 
 
 @st.cache_resource(show_spinner=False)
-def _hospital_resources() -> tuple[HospitalRetriever | None, dict[str, Any], str, int, int]:
-    """Load OSM records, then index only dispatch-eligible hospitals/trauma centres."""
+def _hospital_resources() -> tuple[HospitalRanker | None, dict[str, Any], str, int, int]:
+    """Load OSM records, then list only dispatch-eligible hospitals/trauma centres."""
     hospitals, stats, source = fetch_or_load_hospitals(save_to_db=False)
     eligible = dispatch_eligible_facilities(hospitals)
-    retriever = HospitalRetriever(HospitalIndex(eligible)) if eligible else None
-    return retriever, stats, source, len(hospitals), len(eligible)
+    ranker = HospitalRanker(HospitalCatalog(eligible)) if eligible else None
+    return ranker, stats, source, len(hospitals), len(eligible)
 
 
 # ---------------------------------------------------------------------------
@@ -1532,28 +1532,28 @@ with hospitals_tab:
     if result is None or location.get("latitude") is None:
         tagged("Hospital suggestions", "not determined — no upload", "SIMULATED")
     else:
-        with st.spinner("Loading cached hospital index…"):
-            retriever, hospital_stats, hospital_source, raw_count, eligible_count = _hospital_resources()
-            if retriever is not None:
-                query = formulate_retrieval_query(
+        with st.spinner("Loading cached hospital records…"):
+            ranker, hospital_stats, hospital_source, raw_count, eligible_count = _hospital_resources()
+            if ranker is not None:
+                needs_text = describe_assumed_needs(
                     urgency=needs["urgency"],
                     hazards=needs["hazards"],
                     injuries=needs["injuries"],
                     verdict=result["verdict"],
                 )
-                retrieval = retriever.retrieve_suggestions(
+                retrieval = ranker.rank_suggestions(
                     incident_lat=float(location["latitude"]),
                     incident_lon=float(location["longitude"]),
-                    query_override=query,
+                    assumed_needs=needs_text,
                     final_top_k=3,
                 )
             else:
-                query = "not determined — no dispatch-eligible facility records"
+                needs_text = "not determined — no dispatch-eligible facility records"
         tagged("Raw OSM facility records loaded", raw_count, "REAL")
         tagged("Dispatch-eligible hospitals / trauma centres", eligible_count, "REAL")
         tagged("Irrelevant or non-hospital records excluded", raw_count - eligible_count, "REAL")
         tagged("OSM cache source", hospital_source, "REAL")
-        tagged("Rule-based retrieval query", query, "SIMULATED")
+        tagged("Assumed needs (rule-based)", needs_text, "SIMULATED")
 
         if retrieval is None:
             st.info("No dispatch-eligible healthcare facility is available in the cached OSM data.")

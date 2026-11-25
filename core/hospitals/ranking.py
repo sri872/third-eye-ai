@@ -1,19 +1,21 @@
-"""Hospital retrieval, need-formulation, and proximity re-ranking.
+"""Deterministic hospital ranking, need descriptions and distance helpers.
 
-Extracts clinical requirements from IncidentReport objects, retrieves candidate
-hospitals by source-backed eligibility, category, emergency tags, and straight-line Haversine
-distance with explicit clinical honesty notes.
+Candidate facilities are listed from the catalog and ordered by three explicit
+rules: the source-reported emergency tag tier, the source-derived facility
+category tier, and finally a transparent proximity/suitability heuristic. Any
+heuristic number is for ordering only and is never a clinical suitability rating.
 """
 
 import math
 import re
 from typing import Any, Dict, List, Optional, Tuple
 
-from core.rag.facility_classification import (
+from core.hospitals.catalog import HospitalCatalog
+from core.hospitals.classification import (
     CATEGORY_PRIORITY,
+    classify_facility,
     classify_hospital_record,
 )
-from core.rag.index import HospitalIndex
 from core.schemas import Hospital, IncidentReport
 
 
@@ -31,9 +33,10 @@ LIMITATIONS_NOTE = (
 
 
 def haversine_distance_km(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
-    """Calculate the great circle distance between two points on Earth in kilometers.
-    
-    Uses standard Haversine formula with mean Earth radius R = 6371.0 km.
+    """Calculate the great-circle distance between two points in kilometers.
+
+    Uses the standard Haversine formula with mean Earth radius R = 6371.0 km.
+    The result is a straight-line distance, never a driving distance.
     """
     R = 6371.0
     phi1 = math.radians(lat1)
@@ -97,13 +100,12 @@ def evaluate_facility_suitability(
     hospital: Hospital,
     incident_text: str,
 ) -> Tuple[float, Optional[str]]:
-    """Determine if a facility has a single specialty unrelated to trauma.
-    
-    If unsuited to this incident, returns transparent down-rank penalty and rule description.
+    """Apply a transparent down-rank rule for an unrelated single specialty.
+
+    Only source-tagged specialties can trigger this rule. A facility name such as
+    "Children Hospital" is not treated as proof of a paediatric emergency service.
     """
     text_lower = incident_text.lower()
-    # Only OSM specialty tags establish a specialty. A name such as "Children Hospital"
-    # is not treated as proof of a paediatric emergency service.
     source_specialties = (hospital.specialties or "").lower()
 
     for spec_name, spec_info in UNSUITABLE_SINGLE_SPECIALTIES.items():
@@ -120,20 +122,17 @@ def evaluate_facility_suitability(
     return 0.0, None
 
 
-def formulate_retrieval_query(
+def describe_assumed_needs(
     incident: Optional[IncidentReport] = None,
     urgency: Optional[str] = None,
     hazards: Optional[List[str]] = None,
     injuries: Optional[List[str]] = None,
     verdict: Optional[str] = None,
 ) -> str:
-    """Formulate a clinical search query from an IncidentReport or explicit triage inputs.
-    
-    Adheres strictly to Task 0d:
-    - Labels output as 'ASSUMED NEEDS (rule-based mapping from caller keywords)'
-    - Strictly conservative: only maps keywords caller actually said
-    - No unsupported expansions (e.g. smoke does NOT expand to chemical decontamination)
-    - Always includes the generic need 'emergency / trauma department'
+    """Describe rule-based assumed needs using only words the caller reported.
+
+    This is an explanatory display string, not a clinical query or a model input.
+    It never expands a keyword into an unstated capability or service.
     """
     if incident is not None:
         urgency = urgency or incident.urgency
@@ -170,7 +169,7 @@ def formulate_retrieval_query(
 
 
 def emergency_suitability(hospital: Hospital) -> Dict[str, Any]:
-    """Report emergency suitability from the OSM emergency tag only.
+    """Report emergency status from the OSM emergency tag only.
 
     Nothing here is independently verified, and 24/7 operation is never inferred.
     """
@@ -229,7 +228,7 @@ def listed_specialties(hospital: Hospital) -> Dict[str, Any]:
 
 
 def candidate_rank_key(candidate: Dict[str, Any]) -> Tuple[Any, ...]:
-    """Rank source-confirmed emergency hospitals before proximity."""
+    """Rank by emergency-tag tier, facility-category tier, heuristic, distance, name."""
     return (
         candidate["emergency_tier"],
         candidate["category_tier"],
@@ -239,84 +238,80 @@ def candidate_rank_key(candidate: Dict[str, Any]) -> Tuple[Any, ...]:
     )
 
 
-def score_hospital_candidate(
-    semantic_score: float,
+def score_candidate_heuristic(
     distance_km: float,
     emergency_tag: Optional[str] = None,
     suitability_penalty: float = 0.0,
-) -> Tuple[float, float, float]:
-    """Calculate a deterministic proximity/emergency-tag heuristic.
+) -> Tuple[float, float]:
+    """Calculate the secondary proximity/emergency-tag ordering heuristic.
 
-    ``semantic_score`` remains in the signature for backwards compatibility and
-    is intentionally ignored. The returned third value is always 0.0.
+    Returns ``(combined_score, proximity_score)``. This number determines ranking
+    order only after the emergency-tag and facility-category tiers are applied;
+    it is not a clinical suitability rating.
     """
     proximity_score = 1.0 / (1.0 + (max(0.0, distance_km) / 8.0))
     emergency_bonus = 0.10 if emergency_tag and emergency_tag.lower() == "yes" else 0.0
     combined_score = max(0.02, 0.80 * proximity_score + emergency_bonus - suitability_penalty)
-    return round(combined_score, 4), round(proximity_score, 4), 0.0
+    return round(combined_score, 4), round(proximity_score, 4)
 
-def explain_match(
+
+def explain_ranking(
     hospital: Hospital,
     distance_km: float,
-    semantic_score: float,
-    query_text: str,
     suitability_rule: Optional[str] = None,
     category: Optional[str] = None,
     emergency_info: Optional[Dict[str, Any]] = None,
     specialties_info: Optional[Dict[str, Any]] = None,
 ) -> str:
-    """Explain a recommendation without presenting a heuristic as clinical verification."""
+    """Explain an ordering decision without claiming clinical verification."""
     reasons = []
     reasons.append(f"Facility category '{category or classify_facility(hospital.name).category}' from OSM name/tags")
-    reasons.append(
-        (emergency_info or emergency_suitability(hospital))["label"]
-    )
+    reasons.append((emergency_info or emergency_suitability(hospital))["label"])
     specialties = specialties_info or listed_specialties(hospital)
     if specialties["items"]:
         reasons.append(f"specialties listed in OSM: {specialties['display']}")
     else:
         reasons.append("no specialties specified in OpenStreetMap; none assumed")
     reasons.append(f"{distance_km:.1f} km straight-line from the SIMULATED demo location")
-    reasons.append("ranking uses source tags, facility category and proximity; no semantic similarity is computed")
+    reasons.append("ranking uses source tags, facility category and proximity; no model-based text search is used")
     if suitability_rule:
         reasons.append(suitability_rule)
     reasons.append("transparent ranking heuristic, not verified medical suitability")
     return "; ".join(reasons)
 
 
-class HospitalRetriever:
-    """High-level retriever using deterministic source/tag/category/proximity ranking."""
+class HospitalRanker:
+    """Rank listed hospital candidates with transparent deterministic rules."""
 
-    def __init__(self, index: HospitalIndex):
-        self.index = index
+    def __init__(self, catalog: HospitalCatalog):
+        self.catalog = catalog
 
-    def retrieve_suggestions(
+    def rank_suggestions(
         self,
         incident_lat: float,
         incident_lon: float,
         incident: Optional[IncidentReport] = None,
-        query_override: Optional[str] = None,
+        assumed_needs: Optional[str] = None,
         top_candidates: int = 30,
         final_top_k: int = 3,
     ) -> Dict[str, Any]:
-        """Retrieve and re-rank eligible hospital suggestions for an incident.
+        """List eligible candidates and rank them by the documented policy.
 
-        Irrelevant/unclassified facilities are removed before scoring. Ordering
-        prioritizes source-confirmed emergency hospitals and facility category
-        over straight-line proximity; scores remain labelled as heuristics.
+        Ordering: source-reported emergency tag tier, then source-derived
+        facility category tier, then the secondary proximity/suitability
+        heuristic. Irrelevant or unclassified facilities are excluded first.
         """
-        query = query_override or formulate_retrieval_query(incident=incident)
-        indexed_records = getattr(self.index, "hospitals", None)
-        candidate_limit = len(indexed_records) if indexed_records is not None else top_candidates
-        raw_candidates = self.index.search(query, top_k=candidate_limit)
+        needs_text = assumed_needs or describe_assumed_needs(incident=incident)
+        candidate_limit = len(self.catalog) if hasattr(self.catalog, "__len__") else top_candidates
+        candidates = self.catalog.list_candidates(limit=candidate_limit)
 
         scored_candidates = []
         excluded_count = 0
-        incident_context_text = query
+        incident_context_text = needs_text
         if incident:
             incident_context_text += f" {' '.join(incident.injuries)} {' '.join(incident.hazards)}"
 
-        for hospital, _legacy_score in raw_candidates:
+        for hospital in candidates:
             classification = classify_hospital_record(hospital)
             if hospital.excluded_from_dispatch_reason is not None or not classification.dispatch_eligible:
                 # Never rank architecture departments, universities, shops, offices,
@@ -329,19 +324,16 @@ class HospitalRetriever:
                 hospital=hospital,
                 incident_text=incident_context_text,
             )
-            combined, prox_score, norm_sem = score_hospital_candidate(
-                semantic_score=0.0,
+            combined, prox_score = score_candidate_heuristic(
                 distance_km=dist,
                 emergency_tag=hospital.emergency,
                 suitability_penalty=suitability_penalty,
             )
             emergency_info = emergency_suitability(hospital)
             specialties_info = listed_specialties(hospital)
-            why = explain_match(
+            why = explain_ranking(
                 hospital=hospital,
                 distance_km=dist,
-                semantic_score=norm_sem,
-                query_text=query,
                 suitability_rule=suit_rule,
                 category=classification.category,
                 emergency_info=emergency_info,
@@ -377,7 +369,6 @@ class HospitalRetriever:
                 "driving_time_min": ROAD_ROUTE_UNAVAILABLE,
                 "score_label": "deterministic proximity/category/emergency-tag heuristic, not verified medical suitability",
                 "attribution": OSM_ATTRIBUTION,
-                "semantic_score": None,
                 "proximity_score": prox_score,
                 "combined_score": combined,
             })
@@ -386,7 +377,7 @@ class HospitalRetriever:
         top_suggestions = scored_candidates[:final_top_k]
 
         return {
-            "query_used": query,
+            "assumed_needs": needs_text,
             "ranking_method": (
                 "OSM emergency-tag tier first, facility category tier second, "
                 "secondary proximity heuristic third; not a clinical suitability rating"

@@ -7,10 +7,10 @@ REPO_ROOT = Path(__file__).resolve().parent.parent
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
-from core.rag.facility_classification import dispatch_eligible_facilities
-from core.rag.hospital_data import fetch_or_load_hospitals
-from core.rag.index import HospitalIndex
-from core.rag.retriever import HospitalRetriever
+from core.hospitals.catalog import HospitalCatalog
+from core.hospitals.classification import dispatch_eligible_facilities
+from core.hospitals.data import fetch_or_load_hospitals
+from core.hospitals.ranking import HospitalRanker
 
 CASES = [
     ("General emergency / trauma", 31.2142, 75.7785),
@@ -22,17 +22,17 @@ CASES = [
 def main():
     hospitals, stats, source = fetch_or_load_hospitals(save_to_db=False)
     eligible = dispatch_eligible_facilities(hospitals)
-    retriever = HospitalRetriever(HospitalIndex(eligible)) if eligible else None
+    ranker = HospitalRanker(HospitalCatalog(eligible)) if eligible else None
     print("Third Eye AI | Deterministic Hospital Ranking Smoke Evaluation")
     print(f"Source: {source}")
     print(f"OSM facilities loaded: {len(hospitals)}; dispatch-eligible: {len(eligible)}")
     print("Ranking inputs: facility eligibility, source-reported emergency tag, facility category and straight-line distance.")
-    print("No embeddings, vector store, or semantic retrieval are used.")
-    if retriever is None:
+    print("No model-based text search or vector index is used.")
+    if ranker is None:
         print("No eligible facilities are present in the current OSM cache.")
         return
     for label, latitude, longitude in CASES:
-        result = retriever.retrieve_suggestions(latitude, longitude, query_override=label, final_top_k=3)
+        result = ranker.rank_suggestions(latitude, longitude, assumed_needs=label, final_top_k=3)
         print("\n" + label)
         for rank, item in enumerate(result["suggestions"], start=1):
             print(f'{rank}. {item["hospital"].name} | {item["distance_km"]} km straight-line | '

@@ -16,8 +16,8 @@ from urllib.parse import urlencode
 
 import folium
 
-from core.rag.facility_classification import CATEGORY_PRIORITY, classify_facility
-from core.rag.location_consistency import compare_locations
+from core.hospitals.classification import CATEGORY_PRIORITY, classify_facility
+from core.hospitals.location_consistency import compare_locations
 from core.routing.dispatch import (
     AMBULANCE_SELECTION_CRITERIA,
     HOSPITAL_RANKING_PRIORITY,

@@ -13,12 +13,11 @@ from typing import Any, Dict, List, Optional, Tuple
 from uuid import uuid4
 import networkx as nx
 
-from core.rag.facility_classification import CATEGORY_PRIORITY, classify_facility
-from core.rag.hospital_data import fetch_or_load_hospitals
-from core.rag.retriever import (
+from core.hospitals.classification import CATEGORY_PRIORITY, classify_facility
+from core.hospitals.data import fetch_or_load_hospitals
+from core.hospitals.ranking import (
     emergency_suitability,
     evaluate_facility_suitability,
-    formulate_retrieval_query,
     haversine_distance_km,
 )
 from core.routing.astar import astar_shortest_path, extract_route_coordinates

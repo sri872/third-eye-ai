@@ -14,7 +14,7 @@ from typing import Any, Dict, List, Optional, Tuple
 import urllib.parse
 import urllib.request
 
-from core.rag.facility_classification import classify_facility
+from core.hospitals.classification import classify_facility
 from core.schemas import Hospital
 from db.database import DEFAULT_DB_PATH, init_db, save_hospitals
 
@@ -211,7 +211,7 @@ def deduplicate_hospitals(
     Preserves all real tags from both records (contact, emergency, specialties, address).
     Returns (deduplicated_hospitals, merged_count).
     """
-    from core.rag.retriever import haversine_distance_km
+    from core.hospitals.ranking import haversine_distance_km
 
     deduped: List[Hospital] = []
     to_skip = set()
@@ -291,7 +291,7 @@ def deduplicate_hospitals(
 
 
 def compute_coverage_statistics(hospitals: List[Hospital]) -> Dict[str, Any]:
-    """Compute and report honest data coverage statistics for retrieved hospitals."""
+    """Compute and report honest data coverage statistics for loaded hospitals."""
     total = len(hospitals)
     if total == 0:
         return {

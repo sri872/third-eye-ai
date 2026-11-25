@@ -9,7 +9,20 @@ from pathlib import Path
 import sqlite3
 import pytest
 
-from db.database import EXPECTED_TABLES, get_connection, get_table_names, init_db
+from core.hospitals.classification import (
+    CATEGORY_HOSPITAL,
+    CATEGORY_UNRELATED,
+    classify_hospital_record,
+)
+from core.schemas import Hospital
+from db.database import (
+    EXPECTED_TABLES,
+    get_connection,
+    get_hospitals,
+    get_table_names,
+    init_db,
+    save_hospitals,
+)
 
 
 @pytest.fixture
@@ -240,3 +253,85 @@ class TestDatabaseSetup:
             conn.commit()
 
         conn.close()
+
+    def test_source_classification_survives_hospital_save_and_retrieve(self, temp_db: Path):
+        init_db(temp_db)
+        eligible = Hospital(
+            hospital_id="h_eligible",
+            name="Civil Hospital Phagwara",
+            latitude=31.2264,
+            longitude=75.7681,
+            emergency="yes",
+            data_source="REAL",
+            source_facility_category=CATEGORY_HOSPITAL,
+            source_dispatch_eligible=True,
+        )
+        excluded = Hospital(
+            hospital_id="h_excluded",
+            name="LPU Architecture Deisgn",
+            latitude=31.2142,
+            longitude=75.7785,
+            data_source="REAL",
+            source_facility_category=CATEGORY_UNRELATED,
+            source_dispatch_eligible=False,
+            excluded_from_dispatch_reason="Non-medical building tag",
+        )
+
+        assert save_hospitals([eligible, excluded], temp_db) == 2
+        rows = {row["hospital_id"]: row for row in get_hospitals(temp_db)}
+        assert set(rows) == {"h_eligible", "h_excluded"}
+
+        reloaded_eligible = Hospital(**dict(rows["h_eligible"]))
+        reloaded_excluded = Hospital(**dict(rows["h_excluded"]))
+        assert reloaded_eligible.source_facility_category == CATEGORY_HOSPITAL
+        assert reloaded_eligible.source_dispatch_eligible is True
+        assert reloaded_eligible.excluded_from_dispatch_reason is None
+        assert reloaded_excluded.source_facility_category == CATEGORY_UNRELATED
+        assert reloaded_excluded.source_dispatch_eligible is False
+        assert reloaded_excluded.excluded_from_dispatch_reason == "Non-medical building tag"
+        assert classify_hospital_record(reloaded_eligible).dispatch_eligible is True
+        assert classify_hospital_record(reloaded_excluded).dispatch_eligible is False
+
+    def test_legacy_hospitals_table_is_migrated_additively(self, temp_db: Path):
+        conn = get_connection(temp_db)
+        conn.execute(
+            """CREATE TABLE hospitals (
+                hospital_id TEXT PRIMARY KEY,
+                name TEXT NOT NULL,
+                latitude REAL NOT NULL,
+                longitude REAL NOT NULL,
+                total_beds INTEGER,
+                available_beds INTEGER,
+                icu_beds_available INTEGER,
+                trauma_center_level INTEGER,
+                contact_number TEXT,
+                confidence REAL,
+                data_source TEXT NOT NULL
+            )"""
+        )
+        conn.execute(
+            """INSERT INTO hospitals (
+                hospital_id, name, latitude, longitude, total_beds, data_source
+            ) VALUES (?, ?, ?, ?, ?, ?)""",
+            ("h_legacy", "Legacy Hospital", 31.2, 75.7, 100, "REAL"),
+        )
+        conn.commit()
+        conn.close()
+
+        init_db(temp_db)
+
+        conn = get_connection(temp_db)
+        columns = {row[1] for row in conn.execute("PRAGMA table_info(hospitals)")}
+        row = conn.execute(
+            "SELECT * FROM hospitals WHERE hospital_id = ?", ("h_legacy",)
+        ).fetchone()
+        conn.close()
+        assert {
+            "excluded_from_dispatch_reason",
+            "source_facility_category",
+            "source_dispatch_eligible",
+        } <= columns
+        assert row["name"] == "Legacy Hospital"
+        assert row["total_beds"] == 100
+        assert row["source_facility_category"] is None
+        assert row["source_dispatch_eligible"] is None

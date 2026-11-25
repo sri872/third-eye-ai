@@ -1,5 +1,7 @@
 # Phase 6 Final Acceptance Report: Emergency Ambulance Dispatch & Road Network Routing
 
+> **Historical report (superseded 2026-11-25):** This report captures the earlier architecture, including `core/rag/` files, FAISS and Sentence-Transformers. Those retrieval components have been removed; current hospital ranking lives in `core/hospitals/` and uses deterministic source-tag, category, emergency-tag and Haversine rules. Historical results below do not validate the replacement implementation. See [SYSTEM_CARD.md](SYSTEM_CARD.md).
+
 **Project**: Project Third-Eye (Workspace: `third-eye-v2`)  
 **Phase**: Phase 6 — Emergency Dispatch & Road Graph Routing (Foundation & Corridor Implementation)  
 **Execution Environment**: Apple Silicon M2, macOS, Python 3.12.3 in local `.venv`  

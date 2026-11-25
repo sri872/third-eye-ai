@@ -1,5 +1,7 @@
 # Phase 0 Acceptance & Foundation Report
 
+> **Historical report (superseded 2026-11-25):** This phase report predates the removal of embedding-based hospital retrieval. The `core/rag/` paths below are historical; the current package is `core/hospitals/`, and hospital ranking is deterministic. See [SYSTEM_CARD.md](SYSTEM_CARD.md) for current architecture.
+
 **Project**: Project Third-Eye (Multimodal Smart Ambulance Router & Automated Accident Forensic Auditor)  
 **Phase**: Phase 0 (Foundation)  
 **Date**: 2026-11-24  

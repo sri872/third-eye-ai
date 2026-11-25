@@ -1,5 +1,7 @@
 # Phase 10 Final Acceptance Report — Review Fixes, System Card, Launcher, Dependencies, Demo, Final Gate
 
+> **Historical report (superseded 2026-11-25):** This report records the earlier FAISS-era CLI output and test names. FAISS and SentenceTransformers have since been removed; current hospital ranking is deterministic in `core/hospitals/`. Historical evidence below does not describe the current branch. See [SYSTEM_CARD.md](SYSTEM_CARD.md).
+
 **Project**: Project Third-Eye (`third-eye-v2`)  
 **Date**: 2026-11-24  
 **Environment**: Apple Silicon macOS, Python 3.12.3, local `.venv`  

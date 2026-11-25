@@ -2,9 +2,9 @@
 
 **Local multimodal accident-analysis and simulated ambulance-dispatch prototype**
 
-Third Eye AI analyses an uploaded road image or traffic video, detects vehicles and people, attempts number-plate OCR, runs a trained accident classifier, extracts structured facts from a caller transcript, retrieves source-labelled hospital records, and displays a simulated dispatch plan. It is designed to run entirely on a MacBook Air M2 using local model weights and cached OpenStreetMap data — no paid API, no cloud inference, no Docker.
+Third Eye AI analyses an uploaded road image or traffic video, detects vehicles and people, attempts number-plate OCR, runs a trained accident classifier, extracts structured facts from a caller transcript, ranks source-labelled hospital records deterministically, and displays a simulated dispatch plan. It is designed to run entirely on a MacBook Air M2 using local model weights and cached OpenStreetMap data — no paid API, no cloud inference, no Docker.
 
-> **Prototype, not an emergency service.** The app does not place calls, contact ambulances, verify GPS or live traffic, or confirm an accident from a single image. Every displayed value is labelled `REAL`, `SIMULATED`, or `NOT DETERMINED`. See [FINAL_DEMO_VERIFICATION_REPORT.md](FINAL_DEMO_VERIFICATION_REPORT.md) for historical measured outputs and known limitations, and [GITHUB_FILE_AUDIT.md](GITHUB_FILE_AUDIT.md) for the original file inventory (the hospital retrieval architecture has since been simplified).
+> **Prototype, not an emergency service.** The app does not place calls, contact ambulances, verify GPS or live traffic, or confirm an accident from a single image. Every displayed value is labelled `REAL`, `SIMULATED`, or `NOT DETERMINED`. See [FINAL_DEMO_VERIFICATION_REPORT.md](FINAL_DEMO_VERIFICATION_REPORT.md) for historical measured outputs and known limitations, and [GITHUB_FILE_AUDIT.md](GITHUB_FILE_AUDIT.md) for the original file inventory (the earlier embedding-based hospital search has since been removed).
 
 ---
 
@@ -17,7 +17,7 @@ Third Eye AI analyses an uploaded road image or traffic video, detects vehicles 
 | 3 | Machine Learning | [`core/ml/accident_analyzer.py`](core/ml/accident_analyzer.py), [`core/ml/accident_features.py`](core/ml/accident_features.py), [`models/accident_classifier.joblib`](models/accident_classifier.joblib) | A trained logistic-regression classifier consumes frozen ResNet-18 embeddings and returns an **uncalibrated** score: `>=0.60` LIKELY ACCIDENT, `0.40–0.60` UNCERTAIN, `<0.40` NO ACCIDENT SIGNAL. Geometric overlap features are explanatory only and never decide the verdict. |
 | 4 | Deep Learning | [`core/cv/detector.py`](core/cv/detector.py), [`core/ml/accident_analyzer.py`](core/ml/accident_analyzer.py) | Neural-network inference: Faster R-CNN for detection and ResNet-18 feature extraction for the accident classifier. |
 | 5 | NLP | [`core/nlp/caller_extraction.py`](core/nlp/caller_extraction.py), [`core/nlp/fusion.py`](core/nlp/fusion.py), [`core/nlp/incident_text.py`](core/nlp/incident_text.py), [`core/nlp/occupant_report.py`](core/nlp/occupant_report.py) | spaCy-based rule extraction of caller-reported vehicles, people, location, injuries, hazards, urgency and accident status. Fusion keeps REAL vision evidence separate from SIMULATED caller evidence and never lets the transcript override the visual verdict. |
-| 6 | Geospatial intelligence (supporting module) | `core/rag/` (legacy compatibility namespace) | Cached OpenStreetMap facility records are classified using source tags and facility names, then ranked using deterministic emergency-tag, facility-category and Haversine-distance rules. No embeddings, vector database or semantic retrieval are used. The legacy directory name is retained temporarily for import compatibility; it contains hospital/geospatial utilities, not a RAG pipeline. |
+| 6 | Geospatial intelligence (supporting module) | [`core/hospitals/`](core/hospitals/) | Cached OpenStreetMap facility records are classified using source tags and facility names, then ranked using deterministic emergency-tag, facility-category and Haversine-distance rules. No hospital embeddings, vector database or semantic retrieval are used. The former `core/rag/` namespace has been removed; frozen ResNet-18 visual embeddings remain only for the accident classifier. |
 
 Supporting modules: [`core/routing/`](core/routing/) contains the A* road-network planner, trajectory simulation and map rendering used by the offline dispatch scripts and the stored summary shown in the UI; [`core/schemas.py`](core/schemas.py) enforces explicit `REAL`/`SIMULATED` provenance; [`db/database.py`](db/database.py) holds the SQLite schema used by the CLI pipeline scripts. The Streamlit app opens SQLite read-only and writes no uploaded bytes to the project.
 
@@ -81,7 +81,7 @@ pip install -r requirements.txt
 | Trained accident classifier + metrics | `models/accident_classifier*.{joblib,json}` | Bundled. |
 | Faster R-CNN ResNet-50 FPN COCO weights | TorchVision cache (`~/.cache/torch/hub/checkpoints`) | Downloaded once by TorchVision on first use (~160 MB); automatic MPS→CPU fallback. |
 | ResNet-18 weights | TorchVision cache (~45 MB) | Downloaded once on first classification. |
-| Hospital retrieval | Local code | Deterministic source-tag, category and distance ranking; no model download. |
+| Hospital ranking | Local code | Deterministic source-tag, category and distance ranking; no model download. |
 
 See [`GITHUB_FILE_AUDIT.md`](GITHUB_FILE_AUDIT.md) for exact sizes, hashes and retrieval instructions for every asset.
 
@@ -130,6 +130,12 @@ The measured outputs for these exact files are recorded in [`FINAL_DEMO_VERIFICA
 
 # Real Streamlit AppTest workflow across all six tabs and four files
 .venv/bin/python scripts/verify_streamlit_workflow.py
+
+# Deterministic hospital-ranking smoke evaluation
+.venv/bin/python scripts/evaluate_hospital_ranking.py
+
+# End-to-end CLI hospital suggestions from the same ranking implementation
+.venv/bin/python scripts/run_hospital_suggestions.py
 ```
 
 The suite covers schemas, database constraints, real detector/OCR integration, plate localisation, caller extraction, source-separated fusion, deterministic hospital-ranking honesty, routing, all six UI tabs, video sampling and the demo-input regressions. Tests that need external dashcam data skip explicitly rather than inventing evidence.

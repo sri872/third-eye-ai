@@ -1,7 +1,7 @@
 """Pure formatting helpers for the Hospitals & emergency numbers tab.
 
 No Streamlit calls live here so the rendering rules can be unit tested cheaply.
-All facility values come from the retrieval result; no value is invented.
+All facility values come from the ranking result; no value is invented.
 """
 
 from __future__ import annotations
@@ -9,7 +9,7 @@ from __future__ import annotations
 from typing import Any, Dict, List
 
 from app.dispatch_ui import display, emergency_status
-from core.rag.retriever import DISTANCE_LABEL, ROAD_ROUTE_UNAVAILABLE
+from core.hospitals.ranking import DISTANCE_LABEL, ROAD_ROUTE_UNAVAILABLE
 
 
 GENERAL_NUMBERS_NOTE = (

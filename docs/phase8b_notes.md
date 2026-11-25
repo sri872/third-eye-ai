@@ -1,5 +1,7 @@
 # Phase 8b Notes — Dispatch UI on the Phase 6d Summary
 
+> **Historical notes (superseded 2026-11-25):** These notes reference the former `core/rag/` module paths. The current hospital package is `core/hospitals/`; the UI still preserves the same six tabs and source-labelled display rules. See [SYSTEM_CARD.md](SYSTEM_CARD.md).
+
 ## Scope and file ownership
 
 Created/edited only:

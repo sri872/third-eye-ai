@@ -6,9 +6,9 @@ incident, partial word matches, or guessed medical capability. A mis-tagged
 building (for example an architecture studio tagged ``healthcare=hospital``) is
 rejected when its name identifies it as a non-clinical facility.
 
-Categories are deliberately kept in this module rather than in the Hospital
-schema: they are derived facts, not new source records, and therefore do not
-change the existing database rows.
+Categories are derived from source tags and names. The resulting classification
+is also persisted alongside each hospital record so the same transparent rule
+survives database round-trips and older rows can be migrated additively.
 """
 
 from __future__ import annotations

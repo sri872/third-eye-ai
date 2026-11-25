@@ -92,6 +92,9 @@ CREATE TABLE IF NOT EXISTS hospitals (
     specialties TEXT,
     attribution TEXT DEFAULT '© OpenStreetMap contributors',
     confidence REAL CHECK(confidence IS NULL OR (confidence >= 0.0 AND confidence <= 1.0)),
+    excluded_from_dispatch_reason TEXT,
+    source_facility_category TEXT,
+    source_dispatch_eligible INTEGER CHECK(source_dispatch_eligible IS NULL OR source_dispatch_eligible IN (0, 1)),
     data_source TEXT NOT NULL CHECK(data_source IN ('REAL', 'SIMULATED'))
 );
 
@@ -179,6 +182,32 @@ EXPECTED_TABLES = [
     "incident_reports",
 ]
 
+# Source-derived hospital classification is persisted additively. Older rows
+# keep their values; newly discovered columns are added in place, never by
+# dropping the hospitals table.
+HOSPITAL_CLASSIFICATION_COLUMNS = {
+    "excluded_from_dispatch_reason": "TEXT",
+    "source_facility_category": "TEXT",
+    "source_dispatch_eligible": (
+        "INTEGER CHECK(source_dispatch_eligible IS NULL OR source_dispatch_eligible IN (0, 1))"
+    ),
+}
+HOSPITAL_COLUMN_ORDER = (
+    "hospital_id", "name", "latitude", "longitude", "total_beds", "available_beds",
+    "icu_beds_available", "trauma_center_level", "contact_number", "address",
+    "emergency", "specialties", "attribution", "confidence",
+    "excluded_from_dispatch_reason", "source_facility_category",
+    "source_dispatch_eligible", "data_source",
+)
+
+
+def _hospital_table_ddl() -> str:
+    """Return the current hospitals CREATE TABLE statement for legacy rebuilds."""
+    marker = "CREATE TABLE IF NOT EXISTS hospitals ("
+    start = SCHEMA_DDL.index(marker)
+    end = SCHEMA_DDL.index(");", start) + 2
+    return SCHEMA_DDL[start:end].replace("CREATE TABLE IF NOT EXISTS hospitals", "CREATE TABLE hospitals", 1)
+
 
 def get_connection(db_path: Optional[Path | str] = None) -> sqlite3.Connection:
     """Create a SQLite connection configured with Row factory and foreign keys."""
@@ -255,55 +284,41 @@ def init_db(db_path: Optional[Path | str] = None) -> List[str]:
             if "video_temporal_signal" not in incident_columns:
                 cursor.execute("ALTER TABLE incident_reports ADD COLUMN video_temporal_signal TEXT;")
 
-        # Handle backward-compatible migration for hospitals columns
+        # Additive backward-compatible migration for hospital records. Source-derived
+        # classification columns are preserved across save/load and older rows stay.
         cursor.execute("PRAGMA table_info(hospitals);")
         hosp_info = cursor.fetchall()
         hosp_columns = [row["name"] for row in hosp_info]
         if hosp_columns:
-            # If total_beds is NOT NULL, recreate table to allow NULL beds for real OSM facilities
             total_beds_notnull = any(row["name"] == "total_beds" and row["notnull"] == 1 for row in hosp_info)
             if total_beds_notnull:
+                # Legacy simulation rows cannot hold NULL bed counts. Rebuild once
+                # with the current schema while copying every column that exists,
+                # including classification values already present in old databases.
+                copy_columns = [name for name in HOSPITAL_COLUMN_ORDER if name in hosp_columns]
+                column_list = ", ".join(copy_columns)
                 cursor.execute("ALTER TABLE hospitals RENAME TO hospitals_old;")
-                cursor.execute("""
-                    CREATE TABLE hospitals (
-                        hospital_id TEXT PRIMARY KEY,
-                        name TEXT NOT NULL,
-                        latitude REAL NOT NULL CHECK(latitude >= -90.0 AND latitude <= 90.0),
-                        longitude REAL NOT NULL CHECK(longitude >= -180.0 AND longitude <= 180.0),
-                        total_beds INTEGER CHECK(total_beds IS NULL OR total_beds >= 0),
-                        available_beds INTEGER CHECK(available_beds IS NULL OR (available_beds >= 0 AND (total_beds IS NULL OR available_beds <= total_beds))),
-                        icu_beds_available INTEGER CHECK(icu_beds_available IS NULL OR (icu_beds_available >= 0 AND (available_beds IS NULL OR icu_beds_available <= available_beds))),
-                        trauma_center_level INTEGER CHECK(trauma_center_level IS NULL OR (trauma_center_level >= 1 AND trauma_center_level <= 5)),
-                        contact_number TEXT,
-                        address TEXT,
-                        emergency TEXT,
-                        specialties TEXT,
-                        attribution TEXT DEFAULT '© OpenStreetMap contributors',
-                        confidence REAL CHECK(confidence IS NULL OR (confidence >= 0.0 AND confidence <= 1.0)),
-                        data_source TEXT NOT NULL CHECK(data_source IN ('REAL', 'SIMULATED'))
-                    );
-                """)
-                cursor.execute("""
-                    INSERT OR IGNORE INTO hospitals (
-                        hospital_id, name, latitude, longitude, total_beds, available_beds,
-                        icu_beds_available, trauma_center_level, contact_number, confidence, data_source
-                    )
-                    SELECT hospital_id, name, latitude, longitude, total_beds, available_beds,
-                           icu_beds_available, trauma_center_level, contact_number, confidence, data_source
-                    FROM hospitals_old;
-                """)
+                cursor.execute(_hospital_table_ddl())
+                cursor.execute(
+                    f"INSERT OR IGNORE INTO hospitals ({column_list}) "
+                    f"SELECT {column_list} FROM hospitals_old;"
+                )
                 cursor.execute("DROP TABLE hospitals_old;")
             else:
-                if "address" not in hosp_columns:
-                    cursor.execute("ALTER TABLE hospitals ADD COLUMN address TEXT;")
-                if "emergency" not in hosp_columns:
-                    cursor.execute("ALTER TABLE hospitals ADD COLUMN emergency TEXT;")
-                if "specialties" not in hosp_columns:
-                    cursor.execute("ALTER TABLE hospitals ADD COLUMN specialties TEXT;")
-                if "attribution" not in hosp_columns:
-                    cursor.execute("ALTER TABLE hospitals ADD COLUMN attribution TEXT DEFAULT '© OpenStreetMap contributors';")
-                if "excluded_from_dispatch_reason" not in hosp_columns:
-                    cursor.execute("ALTER TABLE hospitals ADD COLUMN excluded_from_dispatch_reason TEXT;")
+                additions = {
+                    "address": "TEXT",
+                    "emergency": "TEXT",
+                    "specialties": "TEXT",
+                    "attribution": "TEXT DEFAULT '© OpenStreetMap contributors'",
+                    **HOSPITAL_CLASSIFICATION_COLUMNS,
+                }
+                for column, definition in additions.items():
+                    if column not in hosp_columns:
+                        cursor.execute(f"ALTER TABLE hospitals ADD COLUMN {column} {definition};")
+            cursor.execute(
+                "CREATE INDEX IF NOT EXISTS idx_hospital_beds "
+                "ON hospitals(available_beds, icu_beds_available);"
+            )
 
         # Handle backward-compatible migration for ambulances columns
         cursor.execute("PRAGMA table_info(ambulances);")
@@ -600,8 +615,9 @@ def save_hospitals(hospitals: List[Any], db_path: Optional[Path | str] = None) -
                     hospital_id, name, latitude, longitude, total_beds,
                     available_beds, icu_beds_available, trauma_center_level,
                     contact_number, address, emergency, specialties,
-                    attribution, confidence, data_source
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                    attribution, confidence, excluded_from_dispatch_reason,
+                    source_facility_category, source_dispatch_eligible, data_source
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
                 (
                     data["hospital_id"],
                     data["name"],
@@ -617,6 +633,13 @@ def save_hospitals(hospitals: List[Any], db_path: Optional[Path | str] = None) -
                     data.get("specialties"),
                     data.get("attribution", "© OpenStreetMap contributors"),
                     data.get("confidence"),
+                    data.get("excluded_from_dispatch_reason"),
+                    data.get("source_facility_category"),
+                    (
+                        int(data["source_dispatch_eligible"])
+                        if data.get("source_dispatch_eligible") is not None
+                        else None
+                    ),
                     data["data_source"],
                 ),
             )

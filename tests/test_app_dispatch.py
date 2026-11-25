@@ -50,7 +50,7 @@ from app.dispatch_ui import (
     scenarios,
     selection_consistency,
 )
-from core.rag.emergency_numbers import get_emergency_numbers
+from core.hospitals.emergency_numbers import get_emergency_numbers
 from core.routing.dispatch import AMBULANCE_SELECTION_CRITERIA, route_geometry_audit
 
 REPO_ROOT = Path(__file__).resolve().parent.parent

@@ -1,7 +1,7 @@
 """Tab 5 regressions: honest facility classification, ranking, location and routing.
 
-These tests deliberately avoid the embedding model: a tiny fake index returns
-controlled candidates so ranking and display rules can be checked directly.
+These tests list controlled candidates directly, so ranking and display rules
+are checked without any model, index or vector search.
 """
 
 from __future__ import annotations
@@ -18,8 +18,8 @@ from app.hospital_ui import (
     hospital_number_lines,
     recommendation_rows,
 )
-from core.rag.emergency_numbers import get_emergency_numbers
-from core.rag.facility_classification import (
+from core.hospitals.catalog import HospitalCatalog
+from core.hospitals.classification import (
     CATEGORY_CLINIC,
     CATEGORY_HOSPITAL,
     CATEGORY_TRAUMA_CENTRE,
@@ -27,24 +27,15 @@ from core.rag.facility_classification import (
     classify_facility,
     dispatch_eligible_facilities,
 )
-from core.rag.hospital_data import fetch_or_load_hospitals
-from core.rag.location_consistency import compare_locations
-from core.rag.retriever import HospitalRetriever
+from core.hospitals.data import fetch_or_load_hospitals
+from core.hospitals.emergency_numbers import get_emergency_numbers
+from core.hospitals.location_consistency import compare_locations
+from core.hospitals.ranking import HospitalRanker
 from core.schemas import Hospital
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 APP_FILE = REPO_ROOT / "app" / "main.py"
 OSM_CACHE = REPO_ROOT / "data" / "hospitals_osm.json"
-
-
-class FakeIndex:
-    """Minimal index stub; no model loading and no database access."""
-
-    def __init__(self, candidates):
-        self.candidates = list(candidates)
-
-    def search(self, query, top_k=10):
-        return self.candidates[:top_k]
 
 
 def _hospital(
@@ -69,12 +60,12 @@ def _hospital(
     )
 
 
-def _retrieve(candidates, lat=31.2142, lon=75.7785, query="emergency trauma"):
-    retriever = HospitalRetriever(FakeIndex(candidates))
-    return retriever.retrieve_suggestions(
+def _rank(candidates, lat=31.2142, lon=75.7785, assumed_needs="emergency trauma"):
+    ranker = HospitalRanker(HospitalCatalog(candidates))
+    return ranker.rank_suggestions(
         incident_lat=lat,
         incident_lon=lon,
-        query_override=query,
+        assumed_needs=assumed_needs,
         final_top_k=3,
     )
 
@@ -149,7 +140,7 @@ def test_real_cache_keeps_raw_count_and_attribution_but_excludes_irrelevant() ->
 # 4. Missing phone / emergency / specialty fields
 def test_missing_fields_are_explicit_and_never_assumed() -> None:
     candidate = _hospital("osm-node-1", "Gandhi Hospital (P) Ltd", 31.2166, 75.7767)
-    result = _retrieve([(candidate, 0.8)])
+    result = _rank([candidate])
     suggestion = result["suggestions"][0]
 
     assert suggestion["phone"] == "not listed"
@@ -168,7 +159,7 @@ def test_emergency_tag_is_source_reported_and_not_24x7_verified() -> None:
     candidate = _hospital(
         "osm-node-2", "Modern Hospital, Jalandhar", 31.1, 75.6, emergency="yes"
     )
-    suggestion = _retrieve([(candidate, 0.5)])["suggestions"][0]
+    suggestion = _rank([candidate])["suggestions"][0]
     assert suggestion["emergency_status"] == "SOURCE_CONFIRMED"
     assert "not independently verified" in suggestion["emergency_suitability"]
     assert "24/7 not established" in suggestion["emergency_suitability"]
@@ -181,8 +172,9 @@ def test_source_confirmed_emergency_outweighs_close_unverified_facility() -> Non
     far_confirmed = _hospital(
         "osm-node-4", "Modern Hospital, Jalandhar", 31.45, 75.95, emergency="yes"
     )
-    # Fake search deliberately returns the near, semantically stronger facility first.
-    result = _retrieve([(near_unverified, 0.95), (far_confirmed, 0.20)])
+    # Source listing deliberately places the near facility first; ranking must
+    # still promote the source-confirmed emergency hospital.
+    result = _rank([near_unverified, far_confirmed])
     names = [item["hospital"].name for item in result["suggestions"]]
 
     assert names[0] == "Modern Hospital, Jalandhar"
@@ -193,7 +185,7 @@ def test_source_confirmed_emergency_outweighs_close_unverified_facility() -> Non
 def test_trauma_centre_ranks_before_plain_hospital_with_same_emergency_tag() -> None:
     hospital = _hospital("osm-node-5", "Civil Hospital Phagwara", 31.23, 75.77, emergency="yes")
     trauma = _hospital("osm-node-6", "Civil Trauma Centre", 31.25, 75.79, emergency="yes")
-    result = _retrieve([(hospital, 0.9), (trauma, 0.3)])
+    result = _rank([hospital, trauma])
     assert result["suggestions"][0]["facility_category"] == CATEGORY_TRAUMA_CENTRE
     assert result["suggestions"][1]["facility_category"] == CATEGORY_HOSPITAL
 
@@ -222,7 +214,7 @@ def test_location_mismatch_keeps_selected_and_caller_locations_separate() -> Non
 # 8. Routing limitations
 def test_road_distance_and_travel_time_are_not_fabricated() -> None:
     candidate = _hospital("osm-node-7", "Civil Hospital Phagwara", 31.23, 75.77)
-    result = _retrieve([(candidate, 0.7)])
+    result = _rank([candidate])
     suggestion = result["suggestions"][0]
 
     assert result["road_distance_km"].startswith("unavailable")
@@ -237,7 +229,7 @@ def test_road_distance_and_travel_time_are_not_fabricated() -> None:
 # 9. Readable card rendering and contact separation
 def test_card_rows_and_contact_rows_are_readable_and_labelled() -> None:
     candidate = _hospital("osm-node-8", "Civil Hospital Phagwara", 31.23, 75.77)
-    suggestion = _retrieve([(candidate, 0.7)])["suggestions"][0]
+    suggestion = _rank([candidate])["suggestions"][0]
     row = recommendation_rows([suggestion])[0]
 
     assert row["Facility"] == "Civil Hospital Phagwara"
