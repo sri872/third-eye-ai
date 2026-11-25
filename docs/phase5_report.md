@@ -1,5 +1,8 @@
 # Phase 5 Report: RAG Hospital Suggestions & Emergency Dispatch Routing
 
+> **Historical implementation note (2026-11-25):** This Phase 5 report documents the original embedding/vector-based hospital retrieval design. That RAG implementation has been removed on branch `remove-rag-retrieval`; the current hospital search uses deterministic source-tag, facility-category, emergency-tag and Haversine-distance ranking. All experiment results below apply to the earlier implementation only and do not validate the replacement ranking. See [docs/SYSTEM_CARD.md](SYSTEM_CARD.md).
+
+
 **Project:** Project Third-Eye (Multimodal Smart Ambulance Router & Automated Accident Forensic Auditor)  
 **Workspace:** `third-eye-v2`  
 **Execution Date:** November 24, 2026  
