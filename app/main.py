@@ -121,6 +121,7 @@ from core.hospitals.data import fetch_or_load_hospitals
 from core.hospitals.emergency_numbers import get_emergency_numbers
 from core.hospitals.location_consistency import compare_locations
 from core.hospitals.ranking import HospitalRanker, describe_assumed_needs
+from core.rag.pipeline import RAG_SAMPLE_QUESTIONS, answer_knowledge_question
 from core.schemas import AccidentEvent, Detection, VehicleReport
 
 DB_PATH = REPO_ROOT / "db" / "third_eye.db"
@@ -1821,6 +1822,57 @@ with hospitals_tab:
         tagged("Limitation", line, "REAL")
     if retrieval is not None:
         tagged("Attribution", retrieval["attribution"], "REAL")
+
+    # -----------------------------------------------------------------------
+    # Emergency knowledge assistant — separate from deterministic hospital ranking
+    # -----------------------------------------------------------------------
+    st.divider()
+    st.markdown("### Emergency-response knowledge assistant (RAG)")
+    st.caption(
+        "Ask a question about Indian road-accident response and Good Samaritan "
+        "guidance. The assistant retrieves source-attributed passages from the "
+        "bundled knowledge base. This does not affect hospital eligibility, "
+        "accident assessment, or dispatch."
+    )
+    knowledge_question = st.selectbox(
+        "Emergency knowledge question",
+        options=["Choose a question…", *RAG_SAMPLE_QUESTIONS],
+        index=0,
+        key="emergency_knowledge_question",
+    )
+    if knowledge_question != "Choose a question…":
+        with st.spinner("Retrieving source passages and preparing a grounded answer…"):
+            try:
+                knowledge_result = answer_knowledge_question(knowledge_question, top_k=3)
+            except (OSError, ValueError, RuntimeError) as exc:
+                st.error(f"Knowledge assistant is unavailable: {exc}")
+            else:
+                tagged("Retrieval method", knowledge_result["retrieval_method"], "REAL")
+                tagged("Response mode", knowledge_result["generation_mode"], "REAL")
+                if knowledge_result.get("model"):
+                    tagged("Local generation model", knowledge_result["model"], "REAL")
+                st.markdown("#### Grounded answer")
+                st.markdown(knowledge_result["answer"])
+                st.markdown("#### Retrieved evidence")
+                if not knowledge_result["retrieved_passages"]:
+                    st.info("No sufficiently relevant passage was found in the indexed documents.")
+                else:
+                    for number, passage in enumerate(knowledge_result["retrieved_passages"], start=1):
+                        with st.expander(f"[{number}] {passage['title']} — {passage['agency']}"):
+                            st.write(passage["text"])
+                            st.caption(
+                                f"Passage ID: {passage['chunk_id']} · "
+                                f"Lexical relevance score: {passage['score']:.3f} "
+                                "(ranking signal, not answer confidence)"
+                            )
+                            st.markdown(f"Source: [{passage['url']}]({passage['url']})")
+                st.markdown("#### Source documents")
+                for source in knowledge_result["sources"]:
+                    st.markdown(
+                        f"- **{source['title']}** — {source['agency']} "
+                        f"([{source['source_id']}]({source['url']}))"
+                    )
+                st.info(knowledge_result["human_review_note"])
 
 # ---------------------------------------------------------------------------
 # Tab 6 — Dispatch (Phase 8b: summary file only, never guessed)
