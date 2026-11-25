@@ -202,13 +202,12 @@ def fuse_incident_evidence(
     )
     if vision_unconfirmed and conflict_details:
         source_disagreements.append(
-            "SOURCE DISAGREEMENT: SIMULATED CALLER-REPORTED ACCIDENT — REAL VISION "
-            "ASSESSMENT DOES NOT CONFIRM THE INCIDENT. "
+            "SOURCE DISAGREEMENT: CALLER-REPORTED ACCIDENT — VISUAL MODEL DOES NOT CONFIRM. "
             f"REAL VISION assessment [{accident_event.verdict}] "
             f"(uncalibrated score {score_text}) conflicts with "
             + "; ".join(conflict_details)
-            + ". Dispatcher verification required; SIMULATED caller evidence is "
-            "retained separately and does not establish the visual outcome."
+            + ". Caller evidence is tagged SIMULATED, retained separately, and does not "
+            "establish the visual outcome. Dispatcher verification required."
         )
     if location_mismatch:
         source_disagreements.append(
