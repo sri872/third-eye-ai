@@ -1,7 +1,7 @@
 """Hospital retrieval, need-formulation, and proximity re-ranking.
 
 Extracts clinical requirements from IncidentReport objects, retrieves candidate
-hospitals using FAISS dense vector search, and re-ranks them by straight-line Haversine
+hospitals by source-backed eligibility, category, emergency tags, and straight-line Haversine
 distance with explicit clinical honesty notes.
 """
 
@@ -245,24 +245,15 @@ def score_hospital_candidate(
     emergency_tag: Optional[str] = None,
     suitability_penalty: float = 0.0,
 ) -> Tuple[float, float, float]:
-    """Compute transparent combined score balancing semantic match and geographic proximity.
-    
-    Formula:
-        proximity_score = 1.0 / (1.0 + (distance_km / 8.0))
-        emergency_bonus = 0.10 if emergency == 'yes' else 0.0
-        combined_score = max(0.02, (0.45 * semantic_score) + (0.45 * proximity_score) + emergency_bonus - suitability_penalty)
-    
-    Returns:
-        (combined_score, proximity_score, semantic_score)
+    """Calculate a deterministic proximity/emergency-tag heuristic.
+
+    ``semantic_score`` remains in the signature for backwards compatibility and
+    is intentionally ignored. The returned third value is always 0.0.
     """
-    clamped_semantic = max(0.0, min(1.0, float(semantic_score)))
     proximity_score = 1.0 / (1.0 + (max(0.0, distance_km) / 8.0))
-    emergency_bonus = 0.10 if (emergency_tag and emergency_tag.lower() == "yes") else 0.0
-
-    raw_score = (0.45 * clamped_semantic) + (0.45 * proximity_score) + emergency_bonus - suitability_penalty
-    combined_score = max(0.02, raw_score)
-    return round(combined_score, 4), round(proximity_score, 4), round(clamped_semantic, 4)
-
+    emergency_bonus = 0.10 if emergency_tag and emergency_tag.lower() == "yes" else 0.0
+    combined_score = max(0.02, 0.80 * proximity_score + emergency_bonus - suitability_penalty)
+    return round(combined_score, 4), round(proximity_score, 4), 0.0
 
 def explain_match(
     hospital: Hospital,
@@ -286,8 +277,7 @@ def explain_match(
     else:
         reasons.append("no specialties specified in OpenStreetMap; none assumed")
     reasons.append(f"{distance_km:.1f} km straight-line from the SIMULATED demo location")
-    if semantic_score >= 0.5:
-        reasons.append("text profile similarity contributes to the ranking")
+    reasons.append("ranking uses source tags, facility category and proximity; no semantic similarity is computed")
     if suitability_rule:
         reasons.append(suitability_rule)
     reasons.append("transparent ranking heuristic, not verified medical suitability")
@@ -295,7 +285,7 @@ def explain_match(
 
 
 class HospitalRetriever:
-    """High-level retriever orchestrating FAISS indexing and proximity re-ranking."""
+    """High-level retriever using deterministic source/tag/category/proximity ranking."""
 
     def __init__(self, index: HospitalIndex):
         self.index = index
@@ -316,7 +306,7 @@ class HospitalRetriever:
         over straight-line proximity; scores remain labelled as heuristics.
         """
         query = query_override or formulate_retrieval_query(incident=incident)
-        raw_candidates = self.index.search(query, top_k=top_candidates)
+        raw_candidates = self.index.search(query, top_k=len(self.index.hospitals))
 
         scored_candidates = []
         excluded_count = 0
@@ -324,7 +314,7 @@ class HospitalRetriever:
         if incident:
             incident_context_text += f" {' '.join(incident.injuries)} {' '.join(incident.hazards)}"
 
-        for hospital, sem_score in raw_candidates:
+        for hospital, _legacy_score in raw_candidates:
             classification = classify_facility(hospital.name)
             if hospital.excluded_from_dispatch_reason is not None or not classification.dispatch_eligible:
                 # Never rank architecture departments, universities, shops, offices,
@@ -338,7 +328,7 @@ class HospitalRetriever:
                 incident_text=incident_context_text,
             )
             combined, prox_score, norm_sem = score_hospital_candidate(
-                semantic_score=sem_score,
+                semantic_score=0.0,
                 distance_km=dist,
                 emergency_tag=hospital.emergency,
                 suitability_penalty=suitability_penalty,
@@ -378,9 +368,9 @@ class HospitalRetriever:
                 "bed_availability": "not determined",
                 "road_distance_km": ROAD_ROUTE_UNAVAILABLE,
                 "driving_time_min": ROAD_ROUTE_UNAVAILABLE,
-                "score_label": "heuristic ranking score, not verified medical suitability",
+                "score_label": "deterministic proximity/category/emergency-tag heuristic, not verified medical suitability",
                 "attribution": OSM_ATTRIBUTION,
-                "semantic_score": norm_sem,
+                "semantic_score": None,
                 "proximity_score": prox_score,
                 "combined_score": combined,
             })
