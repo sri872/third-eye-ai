@@ -255,6 +255,12 @@ def deduplicate_hospitals(
                     chosen_lat = h1.latitude if h1.contact_number else h2.latitude
                     chosen_lon = h1.longitude if h1.contact_number else h2.longitude
                     chosen_reason = h1.excluded_from_dispatch_reason if len(h1.name) >= len(h2.name) else h2.excluded_from_dispatch_reason
+                    source_categories = [getattr(h1, "source_facility_category", None), getattr(h2, "source_facility_category", None)]
+                    source_eligibility = [getattr(h1, "source_dispatch_eligible", None), getattr(h2, "source_dispatch_eligible", None)]
+                    merged_source_eligible = True if True in source_eligibility else (False if any(value is False for value in source_eligibility) else None)
+                    merged_source_category = ("trauma centre" if "trauma centre" in source_categories else ("hospital" if "hospital" in source_categories else next((value for value in source_categories if value is not None), None)))
+                    if merged_source_eligible is True:
+                        chosen_reason = None
 
                     merged_hosp = Hospital(
                         hospital_id=chosen_id,
@@ -273,6 +279,8 @@ def deduplicate_hospitals(
                         confidence=1.0,
                         data_source="REAL",
                         excluded_from_dispatch_reason=chosen_reason,
+                        source_facility_category=merged_source_category,
+                        source_dispatch_eligible=merged_source_eligible,
                     )
                     to_skip.add(j)
                     merged_count += 1
