@@ -104,6 +104,7 @@ def test_deterministic_proximity_and_emergency_tag_ranking():
 
     assert prox_a > prox_b
     assert combined_a > combined_b
+    assert legacy_a == legacy_b == 0.0
     assert combined_a - combined_b > 0.15  # Notable proximity advantage
 
     # Emergency tag boost test
@@ -150,7 +151,7 @@ def test_hospital_schema_validation():
 
 
 # 4. Database Persistence Test
-def test_save_and_retrieve_hospitals(temp_rag_db: Path, sample_hospitals: list[Hospital]):
+def test_save_and_retrieve_hospital_records(temp_hospital_db: Path, sample_hospitals: list[Hospital]):
     count = save_hospitals(sample_hospitals, db_path=temp_rag_db)
     assert count == 3
 
