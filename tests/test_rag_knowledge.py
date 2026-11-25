@@ -73,7 +73,7 @@ def test_answer_pipeline_cites_retrieved_sources_and_uses_explicit_fallback(monk
 
 def test_no_matching_passage_does_not_generate_an_unsupported_answer():
     result = generate_grounded_answer(
-        "What colour is the ambulance at my local hospital?",
+        "Explain quantum chromodynamics and quark confinement.",
         [],
     )
     assert result["generation_mode"] == "NO SUPPORTED SOURCE FOUND"
@@ -109,3 +109,35 @@ def test_rag_corpus_is_versioned_and_has_source_metadata():
         assert document["url"].startswith("https://")
         assert document["chunks"]
         assert all(chunk["text"].strip() for chunk in document["chunks"])
+
+
+
+def test_hospitals_tab_exposes_rag_question_dropdown_and_answer(monkeypatch):
+    """The knowledge assistant is available without a media upload and preserves six tabs."""
+    from pathlib import Path
+    from streamlit.testing.v1 import AppTest
+
+    monkeypatch.delenv("THIRD_EYE_RAG_OLLAMA_MODEL", raising=False)
+    monkeypatch.delenv("THIRD_EYE_RAG_OLLAMA_HOST", raising=False)
+    app_file = Path(__file__).resolve().parents[1] / "app" / "main.py"
+    at = AppTest.from_file(str(app_file), default_timeout=300).run()
+    assert not at.exception, [item.value for item in at.exception]
+    assert len(at.tabs) == 6
+
+    question_select = next(
+        item for item in at.tabs[4].selectbox
+        if item.label == "Emergency knowledge question"
+    )
+    assert question_select.options[0] == "Choose a question…"
+    question_select.select(RAG_SAMPLE_QUESTIONS[2]).run()
+
+    assert not at.exception, [item.value for item in at.exception]
+    assert not at.error, [item.value for item in at.error]
+    tab_text = " ".join(
+        node.value
+        for kind in ("markdown", "caption", "info", "text")
+        for node in at.tabs[4].get(kind)
+    )
+    assert "EXTRACTIVE RAG" in tab_text
+    assert "Retrieved evidence" in tab_text
+    assert "National Health Mission" in tab_text
