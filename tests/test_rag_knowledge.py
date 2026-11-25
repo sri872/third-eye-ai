@@ -141,3 +141,41 @@ def test_hospitals_tab_exposes_rag_question_dropdown_and_answer(monkeypatch):
     assert "EXTRACTIVE RAG" in tab_text
     assert "Retrieved evidence" in tab_text
     assert "National Health Mission" in tab_text
+
+
+def test_local_generation_without_valid_passage_citation_falls_back(monkeypatch):
+    import core.rag.generator as generator
+
+    monkeypatch.setattr(
+        generator,
+        "_ollama_answer",
+        lambda query, passages: ("An uncited generated statement.", "test-local-model"),
+    )
+    passage = {
+        "text": "The source passage says Good Samaritans may help road-crash victims.",
+        "title": "Official source",
+        "agency": "Government agency",
+        "url": "https://example.org/source",
+    }
+    result = generator.generate_grounded_answer("What is the guidance?", [passage])
+    assert result["generation_mode"] == "EXTRACTIVE FALLBACK — LOCAL OLLAMA UNAVAILABLE"
+    assert "uncited generated statement" not in result["answer"]
+
+
+def test_local_generation_with_valid_passage_citation_is_returned(monkeypatch):
+    import core.rag.generator as generator
+
+    monkeypatch.setattr(
+        generator,
+        "_ollama_answer",
+        lambda query, passages: ("The source describes the protection. [1]", "test-local-model"),
+    )
+    passage = {
+        "text": "The source passage says Good Samaritans may help road-crash victims.",
+        "title": "Official source",
+        "agency": "Government agency",
+        "url": "https://example.org/source",
+    }
+    result = generator.generate_grounded_answer("What is the guidance?", [passage])
+    assert result["generation_mode"] == "LOCAL OLLAMA RAG"
+    assert result["answer"].endswith("[1]")
