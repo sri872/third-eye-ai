@@ -138,9 +138,9 @@ def main() -> int:
         for contact in emergency_contacts:
             print(f"  * {contact['number']}: {contact['service']} - {contact['official_source']} ({contact['source_url']})")
         print("------------------------------------------------------------------")
-        print(f"RAG Retrieval Query: \"{rag_result['query_used']}\"")
+        print(f"Assumed Needs (rule-based from caller keywords): \"{hospital_result['query_used']}\"")
         print("TOP 3 SUGGESTED HEALTHCARE FACILITIES:")
-        for rank, sug in enumerate(rag_result["suggestions"], 1):
+        for rank, sug in enumerate(hospital_result["suggestions"], 1):
             hosp = sug["hospital"]
             print(f"  [{rank}] {hosp.name}")
             print(f"      Distance        : {sug['distance_km']} km ({sug['distance_label']})")
