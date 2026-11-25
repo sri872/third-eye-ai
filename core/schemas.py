@@ -194,6 +194,14 @@ class Hospital(BaseThirdEyeModel):
         default=None,
         description="Reason if excluded from emergency dispatch destination"
     )
+    source_facility_category: Optional[str] = Field(
+        default=None,
+        description="Facility category derived from source OSM tags/name at ingestion time"
+    )
+    source_dispatch_eligible: Optional[bool] = Field(
+        default=None,
+        description="Dispatch eligibility derived from source OSM tags/name; None means not classified"
+    )
 
     @model_validator(mode="after")
     def validate_beds(self) -> "Hospital":
