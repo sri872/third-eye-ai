@@ -15,7 +15,7 @@
 | Accident signal | Frozen ResNet-18 embeddings + logistic regression (`models/accident_classifier.joblib`) | Same frame | Probability + verdict (`LIKELY ACCIDENT` ≥ 0.60, `UNCERTAIN` 0.40–0.60, `NO ACCIDENT SIGNAL` < 0.40) |
 | Geometric explanation | IoU / aspect-ratio features and transparent rules (`method="RULE_BASED_HEURISTIC"`) | Detections | Explanation text only; never overrides the trained model score |
 | Caller NLP / fusion | spaCy `en_core_web_sm`, rule-based extraction | Simulated call text + vision result | Occupant report, fused incident summary |
-| Hospital suggestion | spaCy embeddings + FAISS + OSM facility cache, Haversine re-rank | Incident location + need | Ranked real OSM facilities with score breakdown |
+| Hospital suggestion | Deterministic OSM facility classification and source-tag/category/Haversine ranking | Incident location + caller-reported needs | Ranked real OSM facilities with transparent heuristic score; no semantic retrieval |
 | Dispatch & routing | Offline OSM graph + admissible A* + deterministic trajectory simulation | 4 simulated incidents, 6 simulated ambulances | `data/outputs/dispatch_summary.json`, route PNG/GeoJSON, SQLite `route_results` |
 | UI | Streamlit single-page dashboard, manual upload only | User-selected file + dropdowns | Tabs for Scene, Vehicles, Accident check, Caller, Hospitals, Dispatch |
 
@@ -51,7 +51,7 @@ Confusion matrix (rows = true negative / true positive, columns = predicted nega
 - **SIMULATED**: incident coordinates (`config/demo_incident_locations.json`), 6 ambulance positions and speeds (`config/simulated_ambulances.json`), replay trajectories, and the choice of severity for the demo scenarios. Dispatch ETAs are computed on the real road graph with assumed speeds and **no live traffic**.
 - **External**: Google Maps links in the Dispatch tab leave the app; they are not the project's own route.
 
-### OpenStreetMap coverage limits (from `docs/phase5_report.md`)
+### Hospital retrieval architecture\n\nHospital suggestions use deterministic source-backed facility classification, source-reported emergency tags, facility category, and Haversine distance. Caller keywords are mapped to an explanatory assumed-needs string only; they are not embedded or semantically searched. FAISS, SentenceTransformers, embedding downloads, and vector retrieval are not part of the current application. The legacy `core/rag/` import directory is retained temporarily to avoid breaking existing imports; it contains geospatial/hospital utilities, not a RAG pipeline.\n\n### OpenStreetMap coverage limits (from `docs/phase5_report.md`)
 
 Of 116 facilities: 17 (14.66%) have a phone tag, 3 (2.59%) have `emergency=yes/no`, and 2 (1.72%) have `healthcare:speciality`. Trauma suitability in dispatch is therefore a **name-based rule**, not verified clinical data.
 
