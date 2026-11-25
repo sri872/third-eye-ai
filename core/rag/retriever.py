@@ -357,6 +357,11 @@ class HospitalRetriever:
                 "emergency_status": emergency_info["status"],
                 "emergency_suitability": emergency_info["label"],
                 "emergency_tier": emergency_info["tier"],
+                "ranking_priority": {
+                    "emergency_tag_tier": emergency_info["tier"],
+                    "facility_category_tier": CATEGORY_PRIORITY.get(classification.category, 4),
+                    "secondary_proximity_heuristic": combined,
+                },
                 "recommended_for_emergency": emergency_info["recommended_for_emergency"],
                 "specialties_listed": specialties_info["items"],
                 "specialty_categories": specialties_info["categories"],
@@ -382,6 +387,10 @@ class HospitalRetriever:
 
         return {
             "query_used": query,
+            "ranking_method": (
+                "OSM emergency-tag tier first, facility category tier second, "
+                "secondary proximity heuristic third; not a clinical suitability rating"
+            ),
             "incident_coordinates": {"latitude": incident_lat, "longitude": incident_lon},
             "incident_coordinates_status": "SIMULATED demo coordinates; no GPS verification",
             "suggestions": top_suggestions,
