@@ -8,16 +8,16 @@ Third Eye AI analyses an uploaded road image or traffic video, detects vehicles 
 
 ---
 
-## Six technologies — where each one actually runs
+## Five core technologies — where each one actually runs
 
 | # | Technology | Implementation (real code) | What executes |
 |---|---|---|---|
 | 1 | Computer Vision | [`core/cv/detector.py`](core/cv/detector.py), [`core/cv/plate_detector.py`](core/cv/plate_detector.py), [`core/cv/plate_detector_yunet.py`](core/cv/plate_detector_yunet.py) | TorchVision Faster R-CNN ResNet-50 FPN (COCO) detects `person`, `car`, `truck`, `bus`, `motorcycle`, `bicycle`; orientation retry for physically rotated photos; YuNet ONNX + OpenCV heuristic + OCR fallback propose plate regions. MPS → CPU fallback. |
 | 2 | OCR | [`core/ocr/plate_reader.py`](core/ocr/plate_reader.py) | Local EasyOCR English reader reads detected plate crops. Raw text and confidence are retained verbatim; text normalisation never invents characters. Verification threshold is **0.70** in [`app/main.py`](app/main.py); below it the Plate column reads `NOT READABLE (UNVERIFIED)`. |
 | 3 | Machine Learning | [`core/ml/accident_analyzer.py`](core/ml/accident_analyzer.py), [`core/ml/accident_features.py`](core/ml/accident_features.py), [`models/accident_classifier.joblib`](models/accident_classifier.joblib) | A trained logistic-regression classifier consumes frozen ResNet-18 embeddings and returns an **uncalibrated** score: `>=0.60` LIKELY ACCIDENT, `0.40–0.60` UNCERTAIN, `<0.40` NO ACCIDENT SIGNAL. Geometric overlap features are explanatory only and never decide the verdict. |
-| 4 | Deep Learning | [`core/cv/detector.py`](core/cv/detector.py), [`core/ml/accident_analyzer.py`](core/ml/accident_analyzer.py), [`core/rag/index.py`](core/rag/index.py) | Neural-network inference: Faster R-CNN for detection, ResNet-18 for embeddings, SentenceTransformer `all-MiniLM-L6-v2` for hospital-document embeddings (FAISS similarity index). |
+| 4 | Deep Learning | [`core/cv/detector.py`](core/cv/detector.py), [`core/ml/accident_analyzer.py`](core/ml/accident_analyzer.py), [`core/rag/index.py`](core/rag/index.py) | Neural-network inference: Faster R-CNN for detection and ResNet-18 feature extraction for the accident classifier. |
 | 5 | NLP | [`core/nlp/caller_extraction.py`](core/nlp/caller_extraction.py), [`core/nlp/fusion.py`](core/nlp/fusion.py), [`core/nlp/incident_text.py`](core/nlp/incident_text.py), [`core/nlp/occupant_report.py`](core/nlp/occupant_report.py) | spaCy-based rule extraction of caller-reported vehicles, people, location, injuries, hazards, urgency and accident status. Fusion keeps REAL vision evidence separate from SIMULATED caller evidence and never lets the transcript override the visual verdict. |
-| 6 | RAG | [`core/rag/hospital_data.py`](core/rag/hospital_data.py), [`core/rag/index.py`](core/rag/index.py), [`core/rag/retriever.py`](core/rag/retriever.py), [`core/rag/facility_classification.py`](core/rag/facility_classification.py) | Real cached OpenStreetMap facility records are classified for dispatch eligibility, embedded with SentenceTransformer, indexed in FAISS, and retrieved by a rule-built query plus proximity re-ranking. Results are labelled REAL OSM with source-reported (unverified) capability. |
+| 6 | Geospatial intelligence (supporting module) | `core/rag/` | Cached OpenStreetMap facility records are classified using source tags and facility names, then ranked using deterministic emergency-tag, facility-category and Haversine-distance rules. No embeddings, vector database or semantic retrieval are used. |
 
 Supporting modules: [`core/routing/`](core/routing/) contains the A* road-network planner, trajectory simulation and map rendering used by the offline dispatch scripts and the stored summary shown in the UI; [`core/schemas.py`](core/schemas.py) enforces explicit `REAL`/`SIMULATED` provenance; [`db/database.py`](db/database.py) holds the SQLite schema used by the CLI pipeline scripts. The Streamlit app opens SQLite read-only and writes no uploaded bytes to the project.
 
@@ -50,7 +50,7 @@ one upload (image or video)
    ├─ NLP ─── caller transcript (SIMULATED, optional)
    │        └─ fusion ─────────────────► source-separated report ──► Incident report tab
    │
-   ├─ RAG ─── cached OSM records ─ FAISS ► labelled hospital suggestions ──► Hospitals tab
+   ├─ Geospatial rules ─ cached OSM records ─► labelled hospital suggestions ──► Hospitals tab
    │
    └─ dispatch summary (SIMULATED) ─────► replay, map, ETAs ──► Dispatch tab
 ```
@@ -70,7 +70,7 @@ source .venv/bin/activate
 pip install -r requirements.txt
 ```
 
-`requirements.txt` is fully pinned and includes the `en_core_web_sm` spaCy model wheel. No `.env` file or API key is required; `.env.example` documents the optional override variables.
+`requirements.txt` is pinned and includes the `en_core_web_sm` spaCy model wheel. Hospital search uses deterministic spatial and attribute rules and requires no embedding or vector packages. No `.env` file or API key is required; `.env.example` documents the optional override variables.
 
 ### Bundled and cached model assets
 
@@ -81,7 +81,7 @@ pip install -r requirements.txt
 | Trained accident classifier + metrics | `models/accident_classifier*.{joblib,json}` | Bundled. |
 | Faster R-CNN ResNet-50 FPN COCO weights | TorchVision cache (`~/.cache/torch/hub/checkpoints`) | Downloaded once by TorchVision on first use (~160 MB); automatic MPS→CPU fallback. |
 | ResNet-18 weights | TorchVision cache (~45 MB) | Downloaded once on first classification. |
-| SentenceTransformer `all-MiniLM-L6-v2` | Hugging Face cache | Downloaded once on first hospital retrieval; runtime uses offline mode after that. |
+| Hospital retrieval | Local code | Deterministic source-tag, category and distance ranking; no model download. |
 
 See [`GITHUB_FILE_AUDIT.md`](GITHUB_FILE_AUDIT.md) for exact sizes, hashes and retrieval instructions for every asset.
 
@@ -132,7 +132,7 @@ The measured outputs for these exact files are recorded in [`FINAL_DEMO_VERIFICA
 .venv/bin/python scripts/verify_streamlit_workflow.py
 ```
 
-The suite covers schemas, database constraints, real detector/OCR integration, plate localisation, caller extraction, source-separated fusion, RAG honesty, routing, all six UI tabs, video sampling and the demo-input regressions. Tests that need external dashcam data skip explicitly rather than inventing evidence.
+The suite covers schemas, database constraints, real detector/OCR integration, plate localisation, caller extraction, source-separated fusion, deterministic hospital-ranking honesty, routing, all six UI tabs, video sampling and the demo-input regressions. Tests that need external dashcam data skip explicitly rather than inventing evidence.
 
 ---
 
