@@ -195,13 +195,20 @@ def fuse_incident_evidence(
             + ", ".join(caller_extraction.hazard_keywords)
             + ")"
         )
-    if accident_event.verdict in ("NO ACCIDENT SIGNAL", "UNCERTAIN") and conflict_details:
+    vision_unconfirmed = accident_event.verdict in (
+        "NO ACCIDENT SIGNAL",
+        "UNCERTAIN",
+        "NOT DETERMINED (out-of-domain still image)",
+    )
+    if vision_unconfirmed and conflict_details:
         source_disagreements.append(
-            "SOURCE DISAGREEMENT: CALLER-REPORTED ACCIDENT — VISUAL MODEL DOES NOT CONFIRM. "
-            f"REAL VISION verdict [{accident_event.verdict}] (uncalibrated score {score_text}) conflicts with "
+            "SOURCE DISAGREEMENT: SIMULATED CALLER-REPORTED ACCIDENT — REAL VISION "
+            "ASSESSMENT DOES NOT CONFIRM THE INCIDENT. "
+            f"REAL VISION assessment [{accident_event.verdict}] "
+            f"(uncalibrated score {score_text}) conflicts with "
             + "; ".join(conflict_details)
-            + ". Dispatcher verification required; SIMULATED caller evidence never "
-            "overrides the REAL vision verdict."
+            + ". Dispatcher verification required; SIMULATED caller evidence is "
+            "retained separately and does not establish the visual outcome."
         )
     if location_mismatch:
         source_disagreements.append(
@@ -227,7 +234,7 @@ def fuse_incident_evidence(
         "Data Source: SIMULATED (Vision data REAL, paired with SIMULATED emergency call)",
         "==================================================================",
         "\n1. MULTIMODAL EXECUTIVE VERDICT:",
-        f"  - REAL VISION VERDICT (authoritative for uploaded media): [{accident_event.verdict}] (Source: VISION, Uncalibrated score: {score_text})",
+        f"  - REAL VISION ASSESSMENT (uploaded-media result): [{accident_event.verdict}] (Source: VISION, raw uncalibrated score: {score_text})",
         f"  - Severity Level: {accident_event.severity.upper()} (Source: VISION)",
         f"  - Image-associated location: {image_loc or 'Unknown'} (Source: {image_loc_source})",
         f"  - Caller-reported location: {caller_loc or 'Unknown'} (Source: {'CALLER_SIMULATED' if caller_loc else 'MISSING'})",
