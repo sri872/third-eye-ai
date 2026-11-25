@@ -1,5 +1,8 @@
 # THIRD EYE AI — Complete Five-Technology Audit, Correction and Integration Report
 
+> **Architecture supersession (2026-11-25):** This audit describes an earlier architecture that included embedding-based hospital retrieval. That vector-search implementation has been removed on branch `remove-rag-retrieval`; hospital suggestions now use deterministic source-tag, category, emergency-tag and Haversine-distance rules. The historical audit results below are not validation of the replacement ranking. See [docs/SYSTEM_CARD.md](docs/SYSTEM_CARD.md).
+
+
 **Project:** THIRD EYE AI — Multimodal Smart Ambulance Router & Automated Accident Forensic Auditor  
 **Workspace:** `~/Projects/third-eye-v2`  
 **Date:** 2026-11-25  
