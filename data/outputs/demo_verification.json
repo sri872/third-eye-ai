@@ -45,13 +45,13 @@
         "bbox": [
           628,
           780,
-          950,
-          841
+          949,
+          840
         ],
         "raw_text": "IND",
-        "raw_confidence": 0.9785,
-        "plate": "TS07JA5S6",
-        "plate_confidence": 0.2266,
+        "raw_confidence": 0.9457,
+        "plate": "TS07JA0566",
+        "plate_confidence": 0.4348,
         "ocr_status": "OK"
       }
     ]

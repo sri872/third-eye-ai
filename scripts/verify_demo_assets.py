@@ -19,7 +19,8 @@ if str(REPO_ROOT) not in sys.path:
 from core.cv.detector import detect, detect_with_orientation
 from core.cv.plate_detector import detect_plate_regions_with_ocr_fallback
 from core.cv.plate_detector_yunet import get_yunet_detector
-from core.ocr.plate_reader import read_plate_evidence
+from core.cv.vehicle_attributes import crop_vehicle
+from core.ocr.plate_reader import preprocess_plate_region, read_plate_evidence
 from core.ml.accident_analyzer import analyze, classify_frame_probability, determine_verdict
 from app.video_utils import probe_video, sample_video_frames
 from app.video_analysis import analyze_frame_scores, build_video_assessment
@@ -57,9 +58,13 @@ cv_final_a = cv2.cvtColor(np.array(final_a), cv2.COLOR_RGB2BGR)
 
 plate_findings = []
 for d in dets_a:
-    x1, y1, x2, y2 = [int(v) for v in d.bbox]
-    v_crop = cv_final_a[max(0, y1):min(cv_final_a.shape[0], y2), max(0, x1):min(cv_final_a.shape[1], x2)]
-    regions = detect_plate_regions_with_ocr_fallback(v_crop, d.bbox)
+    # Use the same crop and source-coordinate bbox as the Streamlit app so the
+    # plate regions and OCR evidence are directly comparable with Tab 2.
+    v_crop = crop_vehicle(cv_final_a, d)
+    x1 = max(0, min(int(round(d.bbox[0])), cv_final_a.shape[1] - 1))
+    y1 = max(0, min(int(round(d.bbox[1])), cv_final_a.shape[0] - 1))
+    vehicle_bbox = (x1, y1, x1 + v_crop.shape[1], y1 + v_crop.shape[0])
+    regions = detect_plate_regions_with_ocr_fallback(v_crop, vehicle_bbox)
     print(f"  Plate candidate regions in vehicle crop: {len(regions)}")
     p_cands = yunet.detect(v_crop) if yunet else ()
     print(f"  YuNet Candidates in vehicle crop: {len(p_cands)}")
@@ -70,7 +75,23 @@ for d in dets_a:
     for region in regions:
         px1, py1, px2, py2 = region.bbox_local
         plate_crop = v_crop[max(0, py1):min(v_crop.shape[0], py2), max(0, px1):min(v_crop.shape[1], px2)]
-        ocr_ev = read_plate_evidence(plate_crop)
+        # Mirror the Streamlit pipeline exactly: try the preprocessed crop and
+        # the raw crop, then retain the stronger plate candidate. This keeps the
+        # machine-readable evidence identical to what the professor sees in Tab 2.
+        processed = preprocess_plate_region(plate_crop)
+        ev_proc = read_plate_evidence(processed)
+        ev_raw = read_plate_evidence(plate_crop)
+        ocr_ev = (
+            ev_raw
+            if (
+                ev_raw.plate
+                and (
+                    not ev_proc.plate
+                    or (ev_raw.plate_confidence or 0) > (ev_proc.plate_confidence or 0)
+                )
+            )
+            else ev_proc
+        )
         print(f"    Region {region.method}: bbox={region.bbox_original}")
         print(f"    EasyOCR: raw_text='{ocr_ev.raw_text}', raw_conf={ocr_ev.raw_confidence}, plate='{ocr_ev.plate}', conf={ocr_ev.plate_confidence}, status='{ocr_ev.ocr_status}'")
         plate_findings.append({

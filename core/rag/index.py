@@ -51,7 +51,10 @@ def build_hospital_profile_text(hospital: Hospital) -> str:
         parts.append("Specialties: General hospital / clinic services.")
     
     if hospital.emergency == "yes":
-        parts.append("Emergency services: 24/7 emergency department available.")
+        parts.append(
+            "Emergency services: emergency department reported in OSM tags; "
+            "24/7 operation not independently verified."
+        )
     elif hospital.emergency == "no":
         parts.append("Emergency services: No emergency department.")
     else:

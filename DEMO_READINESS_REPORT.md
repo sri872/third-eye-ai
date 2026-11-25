@@ -1,5 +1,7 @@
 # THIRD EYE AI — Demonstration Readiness Report
 
+> **Historical report.** This document records the mid-project readiness audit. Some OCR values and test counts were superseded by later fixes. The authoritative final measurements are in [FINAL_DEMO_VERIFICATION_REPORT.md](FINAL_DEMO_VERIFICATION_REPORT.md) and the machine-readable evidence files under `data/outputs/`.
+
 **Workspace:** `~/Projects/third-eye-v2`  
 **Report date:** 2026-11-25  
 **Baseline suite:** `204 passed, 6 warnings in 38.38s`  

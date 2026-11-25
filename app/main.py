@@ -1,8 +1,8 @@
-"""Project Third-Eye — Phase 14 video verification dashboard
+"""Third Eye AI — six-tab Streamlit demonstration dashboard.
 
 One Streamlit page. Nothing runs on data/samples automatically: the user must
-upload one image or video. SQLite is always opened read-only (mode=ro), and no
-uploaded byte is ever written into the project or into the database.
+upload one image or video. SQLite is always opened read-only (mode=ro); images
+stay in memory and videos use an auto-deleted temporary file outside the project.
 """
 
 from __future__ import annotations
@@ -149,7 +149,7 @@ ACCIDENT_LIMITATIONS = (
 )
 
 st.set_page_config(
-    page_title="Third-Eye | Phase 8a Manual Upload",
+    page_title="Third Eye AI | Six-Tab Demonstration",
     page_icon="🚑",
     layout="wide",
 )
@@ -928,10 +928,10 @@ def _process_video(
 # ---------------------------------------------------------------------------
 # Page setup — the only interactive controls are one uploader and two dropdowns
 # ---------------------------------------------------------------------------
-st.title("🚑 Project Third-Eye")
+st.title("🚑 Third Eye AI")
 st.caption(
-    "Phase 8a-2 | Upload one image or video | No automatic sample processing | "
-    "SQLite opened read-only (mode=ro)"
+    "Six-tab multimodal demonstration | Upload one image or video | "
+    "No automatic sample processing | SQLite opened read-only (mode=ro)"
 )
 
 uploaded = st.sidebar.file_uploader(
