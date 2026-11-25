@@ -1,4 +1,4 @@
-"""Architecture regressions for the removal of RAG-style hospital retrieval."""
+"""Architecture regressions for deterministic hospital ranking and separate knowledge RAG."""
 
 from __future__ import annotations
 
@@ -10,9 +10,7 @@ import pytest
 
 ROOT = Path(__file__).resolve().parents[1]
 SOURCE_DIRS = ("app", "core", "db", "scripts")
-FORBIDDEN_SOURCE_TOKENS = (
-    "core.rag",
-    "core/rag",
+FORBIDDEN_HOSPITAL_LEGACY_TOKENS = (
     "HospitalIndex",
     "HospitalRetriever",
     "get_embedding_model",
@@ -46,10 +44,22 @@ def _from_imports(source: str) -> set[tuple[str, str]]:
     return imports
 
 
-def test_old_rag_namespace_is_absent():
-    assert not (ROOT / "core" / "rag").exists()
-    with pytest.raises(ModuleNotFoundError):
-        importlib.import_module("core.rag")
+def test_knowledge_rag_namespace_exists_as_a_separate_feature():
+    package = importlib.import_module("core.rag")
+    pipeline = importlib.import_module("core.rag.pipeline")
+    assert hasattr(pipeline, "answer_knowledge_question")
+    assert hasattr(pipeline, "RAG_SAMPLE_QUESTIONS")
+    assert callable(package.answer_knowledge_question)
+
+
+def test_hospital_ranking_does_not_import_or_depend_on_knowledge_rag():
+    hospital_files = list((ROOT / "core" / "hospitals").glob("*.py"))
+    assert hospital_files
+    for path in hospital_files:
+        source = path.read_text(encoding="utf-8")
+        assert "core.rag" not in source
+        assert "sentence_transformers" not in source.lower()
+        assert "faiss" not in source.lower()
 
 
 def test_new_hospital_package_exposes_shared_public_api():
@@ -60,22 +70,23 @@ def test_new_hospital_package_exposes_shared_public_api():
     assert hasattr(package, "dispatch_eligible_facilities")
 
 
-def test_removed_dependencies_and_apis_cannot_reappear_in_active_code():
+def test_removed_hospital_retrieval_apis_and_dependencies_cannot_reappear():
     violations = []
     for path in _active_source_files():
         source = path.read_text(encoding="utf-8")
         lowered = source.lower()
-        for token in FORBIDDEN_SOURCE_TOKENS:
+        for token in FORBIDDEN_HOSPITAL_LEGACY_TOKENS:
             if token.lower() in lowered:
                 violations.append(f"{path.relative_to(ROOT)}: {token}")
-    assert violations == [], "Removed RAG surfaces reintroduced: " + ", ".join(violations)
+    assert violations == [], "Removed hospital retrieval surfaces reintroduced: " + ", ".join(violations)
 
 
-def test_removed_dependencies_are_absent_from_requirements():
+def test_removed_vector_dependencies_are_absent_from_requirements():
     requirements = (ROOT / "requirements.txt").read_text(encoding="utf-8").lower()
     assert "faiss" not in requirements
     assert "sentence-transformers" not in requirements
     assert "sentence_transformers" not in requirements
+    assert "scikit-learn" in requirements
 
 
 def test_app_and_evaluator_share_the_one_hospital_ranker():
