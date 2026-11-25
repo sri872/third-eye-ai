@@ -4,7 +4,7 @@
 
 Third Eye AI analyses an uploaded road image or traffic video, detects vehicles and people, attempts number-plate OCR, runs a trained accident classifier, extracts structured facts from a caller transcript, retrieves source-labelled hospital records, and displays a simulated dispatch plan. It is designed to run entirely on a MacBook Air M2 using local model weights and cached OpenStreetMap data — no paid API, no cloud inference, no Docker.
 
-> **Prototype, not an emergency service.** The app does not place calls, contact ambulances, verify GPS or live traffic, or confirm an accident from a single image. Every displayed value is labelled `REAL`, `SIMULATED`, or `NOT DETERMINED`. See [FINAL_DEMO_VERIFICATION_REPORT.md](FINAL_DEMO_VERIFICATION_REPORT.md) for the actual verified outputs and limitations, and [GITHUB_FILE_AUDIT.md](GITHUB_FILE_AUDIT.md) for the complete file inventory.
+> **Prototype, not an emergency service.** The app does not place calls, contact ambulances, verify GPS or live traffic, or confirm an accident from a single image. Every displayed value is labelled `REAL`, `SIMULATED`, or `NOT DETERMINED`. See [FINAL_DEMO_VERIFICATION_REPORT.md](FINAL_DEMO_VERIFICATION_REPORT.md) for historical measured outputs and known limitations, and [GITHUB_FILE_AUDIT.md](GITHUB_FILE_AUDIT.md) for the original file inventory (the hospital retrieval architecture has since been simplified).
 
 ---
 
