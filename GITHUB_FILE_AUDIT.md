@@ -1,5 +1,8 @@
 # GitHub File Audit — Third Eye AI
 
+> **Inventory supersession (2026-11-25):** This file inventory predates the hospital retrieval cleanup. FAISS and SentenceTransformers are removed from the current branch's `requirements.txt` and runtime code. Hospital suggestions use deterministic source-backed geospatial ranking. See [README.md](README.md) and [docs/SYSTEM_CARD.md](docs/SYSTEM_CARD.md) for the current architecture.
+
+
 **Repository:** <https://github.com/sri872/third-eye-ai> (public)
 **Workspace:** `~/Projects/third-eye-v2`
 **Audit date:** 2026-11-25
