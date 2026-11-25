@@ -237,3 +237,32 @@ def test_emergency_numbers_verified():
 def test_embedding_retrieval_is_disabled():
     with pytest.raises(RuntimeError, match="Embedding retrieval has been removed"):
         get_embedding_model()
+
+
+def test_osm_tag_based_hospital_eligibility_survives_name_only_filtering():
+    from core.rag.facility_classification import dispatch_eligible_facilities
+
+    element = {
+        "type": "node",
+        "id": 901234,
+        "lat": 31.2200,
+        "lon": 75.7700,
+        "tags": {
+            "name": "Regional Medical Centre",
+            "healthcare": "hospital",
+            "emergency": "yes",
+        },
+    }
+    hospital = parse_osm_element_to_hospital(element)
+    assert hospital is not None
+    assert hospital.source_facility_category == "hospital"
+    assert hospital.source_dispatch_eligible is True
+
+    eligible = dispatch_eligible_facilities([hospital])
+    assert eligible == [hospital]
+
+    result = HospitalRetriever(HospitalIndex(eligible)).retrieve_suggestions(
+        31.2201, 75.7701, query_override="general emergency", final_top_k=1
+    )
+    assert result["suggestions"][0]["hospital"].name == "Regional Medical Centre"
+    assert result["suggestions"][0]["emergency_status"] == "SOURCE_CONFIRMED"
