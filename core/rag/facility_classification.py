@@ -231,12 +231,30 @@ def classify_facility(
     )
 
 
+def classify_hospital_record(hospital) -> FacilityClassification:
+    """Reuse OSM-derived classification retained at ingestion time.
+
+    Non-OSM/manual records without classification metadata are conservatively
+    classified from the facility name.
+    """
+    category = getattr(hospital, "source_facility_category", None)
+    eligible = getattr(hospital, "source_dispatch_eligible", None)
+    if category is not None and eligible is not None:
+        return FacilityClassification(
+            category=category,
+            is_healthcare=category != CATEGORY_UNRELATED,
+            dispatch_eligible=bool(eligible),
+            reason=getattr(hospital, "excluded_from_dispatch_reason", None),
+        )
+    return classify_facility(hospital.name)
+
+
 def dispatch_eligible_facilities(hospitals, classification_by_id=None):
-    """Return only facilities whose name/tags establish a hospital or trauma centre."""
+    """Return only facilities whose source data establishes hospital eligibility."""
     known = classification_by_id or {}
     eligible = []
     for hospital in hospitals:
-        classification = known.get(hospital.hospital_id) or classify_facility(hospital.name)
+        classification = known.get(hospital.hospital_id) or classify_hospital_record(hospital)
         if classification.dispatch_eligible and hospital.excluded_from_dispatch_reason is None:
             eligible.append(hospital)
     return eligible
