@@ -106,7 +106,7 @@ from core.ocr.plate_reader import (
 from core.rag.emergency_numbers import get_emergency_numbers
 from core.rag.facility_classification import dispatch_eligible_facilities
 from core.rag.hospital_data import fetch_or_load_hospitals
-from core.rag.index import HospitalIndex, get_embedding_model
+from core.rag.index import HospitalIndex
 from core.rag.location_consistency import compare_locations
 from core.rag.retriever import HospitalRetriever, formulate_retrieval_query
 from core.schemas import AccidentEvent, Detection, VehicleReport
@@ -1613,6 +1613,6 @@ if result is not None:
     st.markdown("**Environment / device note**")
     tagged("Vision detector device", get_target_device().type.upper(), "REAL")
     tagged("Accident extractor device", get_device().type.upper(), "REAL")
-    tagged("Embedding model device", get_embedding_model().device, "REAL")
+    tagged("Hospital ranking method", "deterministic source-tag, facility-category and Haversine-distance rules (no embeddings)", "REAL")
     tagged("SQLite access", "read-only URI (mode=ro)", "REAL")
     tagged("Upload handling", "in-memory bytes; video uses an auto-deleted temp file", "REAL")
