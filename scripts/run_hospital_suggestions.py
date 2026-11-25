@@ -3,9 +3,10 @@
 
 Automated workflow:
 1. Loads real OpenStreetMap healthcare facilities (116 hospitals/clinics within 25 km of Phagwara).
-2. Ranks eligible facilities using source tags, facility category and straight-line distance.
-3. Assigns Phase 4 incidents (road_1, road_2, road_3) to simulated demo locations from dropdown config.
-4. Formulates clinical need queries, retrieves candidates, and re-ranks by straight-line Haversine distance.
+2. Orders eligible facilities by source-reported emergency-tag tier, facility category, then a
+   secondary straight-line proximity heuristic.
+3. Assigns Phase 4 still-image incidents (road_1, road_2, road_3) to simulated demo locations.
+4. Formulates caller-keyword needs and retrieves candidates using the deterministic priority order.
 5. Surfaces top 3 suggested hospitals with transparent rationale, verified emergency dispatch numbers,
    and strict clinical honesty notes ("bed availability: not determined").
 """
@@ -96,8 +97,22 @@ def main() -> int:
         call_text = call_path.read_text(encoding="utf-8")
         caller_ext = extract_caller_info(call_text, call_id=call_path.stem)
 
+        # These demo assets are still photos, while the accident classifier was trained
+        # on dashcam video frames. Keep its raw output for audit, but do not promote
+        # NO ACCIDENT SIGNAL to a final scene assessment for a still image.
+        accident_event_for_fusion = accident_event.model_copy(update={
+            "severity": "uncertain",
+            "status": "NOT DETERMINED (out-of-domain still image)",
+            "verdict": "NOT DETERMINED (out-of-domain still image)",
+            "reasons": (
+                "Still image is outside the dashcam-video training domain. "
+                f"Raw classifier output: {accident_event.verdict}; "
+                f"uncalibrated score: {accident_event.score}. "
+                "This is not proof of an accident or of normal traffic; human review is required."
+            ),
+        })
         fused_report = fuse_incident_evidence(
-            accident_event=accident_event,
+            accident_event=accident_event_for_fusion,
             vehicle_reports=vehicle_reports,
             occupant_reports=occupant_reports,
             caller_extraction=caller_ext,
@@ -127,7 +142,11 @@ def main() -> int:
         print(f"Corridor Profile  : {location['environment']} | Traffic: {location['typical_traffic']}")
         print(f"Nearby Landmarks  : {', '.join(location['nearby_landmarks'])}")
         print("------------------------------------------------------------------")
-        print(f"Visual Verdict    : {fused_report.verdict} (ML confidence: {accident_event.score:.4f})")
+        print(f"Visual Assessment : {fused_report.verdict}")
+        print(
+            f"Raw Model Output  : {accident_event.verdict} "
+            f"(uncalibrated score: {accident_event.score:.4f}; not a reliable still-image decision)"
+        )
         print(f"Vehicles Involved : Vision={fused_report.vision_vehicle_count} vs Caller={fused_report.caller_vehicle_count}")
         print(f"People Visible    : Vision={fused_report.vision_people_count} vs Caller={fused_report.caller_people_count}")
         print(f"Identified Hazards: {fused_report.hazards if fused_report.hazards else 'None reported'} (Source: {fused_report.hazards_source})")
@@ -140,6 +159,7 @@ def main() -> int:
         print("------------------------------------------------------------------")
         print(f"Assumed Needs (rule-based from caller keywords): \"{hospital_result['query_used']}\"")
         print("TOP 3 SUGGESTED HEALTHCARE FACILITIES:")
+        print(f"Ordering Basis : {hospital_result['ranking_method']}")
         for rank, sug in enumerate(hospital_result["suggestions"], 1):
             hosp = sug["hospital"]
             print(f"  [{rank}] {hosp.name}")
@@ -148,7 +168,12 @@ def main() -> int:
             print(f"      Emergency Dept  : {sug['emergency']}")
             print(f"      Specialties     : {sug['specialties']}")
             print(f"      Match Rationale : {sug['why_suggested']}")
-            print("      Ranking Score   : {:.4f} (Proximity: {:.4f}; deterministic heuristic)".format(sug["combined_score"], sug["proximity_score"]))
+            print(
+                "      Secondary Heuristic : {:.4f} "
+                "(proximity: {:.4f}; applied only after emergency-tag and category priority)".format(
+                    sug["combined_score"], sug["proximity_score"]
+                )
+            )
             print(f"      Bed Status      : bed availability: {sug['bed_availability']}")
             print(f"      Attribution     : {sug['attribution']}")
         print()
