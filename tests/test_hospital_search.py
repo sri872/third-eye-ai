@@ -152,10 +152,10 @@ def test_hospital_schema_validation():
 
 # 4. Database Persistence Test
 def test_save_and_retrieve_hospital_records(temp_hospital_db: Path, sample_hospitals: list[Hospital]):
-    count = save_hospitals(sample_hospitals, db_path=temp_rag_db)
+    count = save_hospitals(sample_hospitals, db_path=temp_hospital_db)
     assert count == 3
 
-    rows = get_hospitals(db_path=temp_rag_db)
+    rows = get_hospitals(db_path=temp_hospital_db)
     assert len(rows) == 3
 
     # Check stored values
