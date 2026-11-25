@@ -1,7 +1,7 @@
 {
   "version": 1,
   "corpus_name": "Third Eye AI — Emergency Response Knowledge Base (India)",
-  "corpus_description": "Curated, paraphrased facts from official Indian government and WHO publications. The content is informational and not medical advice.",
+  "corpus_description": "Curated, paraphrased summaries from official Indian government and WHO publications. Source documents are linked for verification; these summaries are informational and not medical or legal advice.",
   "last_reviewed": "2026-11-26",
   "documents": [
     {
@@ -13,15 +13,15 @@
       "chunks": [
         {
           "chunk_id": "MORTH-GS-01",
-          "text": "The Ministry of Road Transport and Highways describes a Good Samaritan as a bystander who helps a road-accident victim, including by taking the person to the nearest hospital or by informing the police or medical emergency service."
+          "text": "The Ministry of Road Transport and Highways describes a Good Samaritan as a bystander who takes a road-accident victim to the nearest hospital or helps by informing the police or medical emergency service."
         },
         {
           "chunk_id": "MORTH-GS-02",
-          "text": "The Ministry's Good Samaritan information sheet lists protections and rights including respectful treatment, not being compelled to disclose personal details, not being forced to deposit money for a victim's treatment, and being allowed to leave the hospital after providing assistance, subject to the applicable rules."
+          "text": "The Ministry's Good Samaritan information sheet lists rights including protection from civil or criminal liability, permission to leave the hospital immediately, not being forced to furnish personal details, not being compelled to deposit money for the victim's treatment, and receiving an acknowledgement from the hospital."
         },
         {
           "chunk_id": "MORTH-GS-03",
-          "text": "The Ministry's Good Samaritan information sheet states that police examination of a Good Samaritan who chooses to be a witness should occur only with the person's consent and under the safeguards described in the applicable rules. This is a summary of the source, not legal advice."
+          "text": "The Ministry's Good Samaritan information sheet says a Good Samaritan who chooses to be examined by police as a witness should be examined on a single occasion and only after consent. Consult the current official rules for the exact legal procedure; this summary is not legal advice."
         }
       ]
     },
@@ -34,28 +34,11 @@
       "chunks": [
         {
           "chunk_id": "MORTH-ACT-134A-01",
-          "text": "Section 134A of the Motor Vehicles (Amendment) Act, 2019 defines a Good Samaritan as a person who, in good faith and voluntarily, without expectation of reward or compensation, gives emergency medical or non-medical care or assistance at the scene of a motor-vehicle accident or transports the victim to a hospital."
+          "text": "Section 134A of the Motor Vehicles (Amendment) Act, 2019 defines a Good Samaritan as a person who, in good faith, voluntarily and without expectation of reward or compensation, provides emergency medical or non-medical care or assistance at a motor-vehicle accident scene or transports the victim to a hospital."
         },
         {
           "chunk_id": "MORTH-ACT-134A-02",
-          "text": "Section 134A provides a statutory protection for a Good Samaritan against civil or criminal action in the circumstances described by the Act while rendering emergency medical or non-medical assistance to a motor-vehicle accident victim. The exact application of the law depends on the statute and rules; this assistant does not provide legal advice."
-        }
-      ]
-    },
-    {
-      "source_id": "MORTH_GOOD_SAMARITAN_RULES_2020",
-      "title": "Central Motor Vehicles (Twelfth Amendment) Rules, 2020 — Good Samaritan protections",
-      "agency": "Government of India, Ministry of Road Transport and Highways",
-      "jurisdiction": "India",
-      "url": "https://morth.nic.in/sites/default/files/circulars_document/Principal%20Secretary_compressed.pdf",
-      "chunks": [
-        {
-          "chunk_id": "MORTH-RULES-2020-01",
-          "text": "The 2020 Central Motor Vehicles Rules describe rights and safeguards for Good Samaritans. The rules state that a Good Samaritan who informs police about a motor-vehicle accident or takes a victim to hospital should not be subjected to unnecessary further requirements by police or hospital staff and should be permitted to leave immediately, subject to the rule's provisions."
-        },
-        {
-          "chunk_id": "MORTH-RULES-2020-02",
-          "text": "The Good Samaritan rules describe respectful treatment and limits on compelling a bystander to disclose personal information. For a legal question or dispute, consult the current official rules or a qualified legal professional rather than relying on this summary."
+          "text": "Section 134A states that a Good Samaritan is not liable for civil or criminal action for injury to or death of a motor-vehicle accident victim resulting from the Good Samaritan's negligence while rendering emergency medical or non-medical care or assistance, in the circumstances described by the section. The exact legal application should be checked against the current statute and rules; this assistant is not a legal adviser."
         }
       ]
     },
@@ -63,8 +46,8 @@
       "source_id": "NHM_AMBULANCE_108_102",
       "title": "Emergency Response Services / Patient Transport Service",
       "agency": "National Health Mission, Ministry of Health and Family Welfare, Government of India",
-      "jurisdiction": "India",
-      "url": "https://nhm.gov.in/NTCP/Manuals_Guidelines/index1.php?lang=1&level=2&lid=189&sublinkid=1217",
+      "jurisdiction": "India; implementation varies by State/UT",
+      "url": "https://nhm.gov.in/nhm_live/index1.php?lang=1&level=2&sublinkid=1217&lid=189",
       "chunks": [
         {
           "chunk_id": "NHM-108-01",
@@ -72,49 +55,28 @@
         },
         {
           "chunk_id": "NHM-102-01",
-          "text": "The National Health Mission describes Dial 102 primarily as basic patient transport, with a focus on pregnant women and children. The NHM page notes that other categories may also use the service and that state or union-territory implementation can vary. Check local service arrangements."
+          "text": "The National Health Mission describes Dial 102 primarily as basic patient transport, with a focus on pregnant women and children. The NHM source says other categories may also use the service and are not excluded; local service implementation can vary by State or Union Territory."
         },
         {
           "chunk_id": "NHM-SERVICE-01",
-          "text": "The National Health Mission states that ambulance services are implemented through state and union-territory systems. Do not infer that a specific vehicle is available, nearby, or dispatched from the existence of a national service number."
+          "text": "The National Health Mission notes that 108 and 102 ambulance services operate through State and Union Territory systems. The presence of a national service number does not establish that a vehicle is available, nearby, or dispatched in a particular incident."
         }
       ]
     },
     {
-      "source_id": "WHO_GLOBAL_PLAN_POST_CRASH",
-      "title": "Global Plan for the Decade of Action for Road Safety 2021–2030 — post-crash response",
+      "source_id": "WHO_GLOBAL_PLAN_ROAD_SAFETY_2021_2030",
+      "title": "Global Plan for the Decade of Action for Road Safety 2021–2030",
       "agency": "World Health Organization and United Nations Regional Commissions",
       "jurisdiction": "International guidance",
-      "url": "https://cdn.who.int/media/docs/default-source/documents/health-topics/road-traffic-injuries/global-plan-for-road-safety.pdf?download=t",
+      "url": "https://www.who.int/publications/m/item/global-plan-for-the-decade-of-action-for-road-safety-2021-2030",
       "chunks": [
         {
-          "chunk_id": "WHO-POSTCRASH-01",
-          "text": "The WHO Global Plan recommends a coordinated post-crash response system with a unique emergency telephone number and mechanisms to coordinate response services such as the fire brigade, police, and ambulance."
+          "chunk_id": "WHO-GLOBAL-PLAN-01",
+          "text": "The WHO and United Nations Regional Commissions developed the Global Plan for the Decade of Action for Road Safety 2021–2030 as a guiding document to support implementation of the Decade's objectives. It is an international policy guidance document, not an operational description of services in a particular Indian district."
         },
         {
-          "chunk_id": "WHO-POSTCRASH-02",
-          "text": "The WHO Global Plan recommends building response capacity among lay responders through appropriate basic emergency-response training, while also strengthening professional pre-hospital, hospital, trauma-registry, and rehabilitation services."
-        },
-        {
-          "chunk_id": "WHO-POSTCRASH-03",
-          "text": "The WHO Global Plan treats post-crash response as a coordinated public-safety and health-system responsibility. It does not establish the availability of a particular hospital, ambulance, or emergency service in an individual location."
-        }
-      ]
-    },
-    {
-      "source_id": "MORTH_RAHVEER_2025",
-      "title": "Scheme Guidelines on Rah-Veer",
-      "agency": "Ministry of Road Transport and Highways, Government of India",
-      "jurisdiction": "India",
-      "url": "https://morth.nic.in/sites/default/files/Scheme-Guidelines-on-RahVeer.pdf",
-      "chunks": [
-        {
-          "chunk_id": "MORTH-RAHVEER-01",
-          "text": "The Ministry of Road Transport and Highways issued revised Rah-Veer scheme guidelines dated 21 April 2025. The scheme is intended to encourage members of the public who help save the life of a road-accident victim by providing immediate assistance and taking the victim to a hospital or trauma-care centre."
-        },
-        {
-          "chunk_id": "MORTH-RAHVEER-02",
-          "text": "The Rah-Veer guidance refers to the Good Samaritan protections under Section 134A of the Motor Vehicles Act and the rules notified in 2020. Details of eligibility, award assessment, and implementation should be checked in the current official scheme document."
+          "chunk_id": "WHO-GLOBAL-PLAN-02",
+          "text": "The WHO Global Plan promotes a holistic road-safety approach in which safety is central to decisions about road-system design, planning, and management. It provides policy guidance to governments and stakeholders; it does not verify ambulance availability, hospital capacity, or an individual accident."
         }
       ]
     }
