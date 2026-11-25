@@ -306,7 +306,9 @@ class HospitalRetriever:
         over straight-line proximity; scores remain labelled as heuristics.
         """
         query = query_override or formulate_retrieval_query(incident=incident)
-        raw_candidates = self.index.search(query, top_k=len(self.index.hospitals))
+        indexed_records = getattr(self.index, "hospitals", None)
+        candidate_limit = len(indexed_records) if indexed_records is not None else top_candidates
+        raw_candidates = self.index.search(query, top_k=candidate_limit)
 
         scored_candidates = []
         excluded_count = 0
