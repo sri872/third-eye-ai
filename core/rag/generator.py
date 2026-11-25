@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 from typing import Any
 from urllib.error import URLError
 from urllib.request import Request, urlopen
@@ -74,7 +75,11 @@ def _ollama_answer(
             result = json.loads(response.read().decode("utf-8"))
         answer = str((result.get("message") or {}).get("content", "")).strip()
         if answer:
-            return answer, model
+            citations = [int(value) for value in re.findall(r"\\[(\\d+)\\]", answer)]
+            # Require at least one in-range passage citation. If the local model
+            # omits citations or invents an index, use the source-extractive fallback.
+            if citations and all(1 <= value <= len(passages) for value in citations):
+                return answer, model
     except (OSError, URLError, TimeoutError, ValueError, json.JSONDecodeError):
         return None, model
     return None, model
