@@ -303,7 +303,8 @@ def test_accident_check_still_image_warning() -> None:
     accident_text = " ".join(
         node.value for kind in ("markdown", "caption", "text") for node in accident.get(kind)
     )
-    assert "Model verdict" in accident_text
+    assert "Assessment" in accident_text
+    assert "Raw model output" in accident_text
     assert "Uncalibrated model score" in accident_text
     assert "NOT DETERMINED (out-of-domain still image)" in accident_text
 
