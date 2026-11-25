@@ -65,7 +65,20 @@ def run_demo(name: str, mime: str, call_option: str | None) -> dict:
     assert "Media fingerprint (SHA-256)" in scene
     assert "Vehicle count (detected)" in scene
     assert result["media_sha256"] == hashlib.sha256(raw).hexdigest()
-    assert all(expected in accident for expected in ("Model verdict", "Uncalibrated model score"))
+    if result["media_type"] == "image":
+        assert all(
+            expected in accident
+            for expected in ("Assessment", "Raw model output", "Uncalibrated model score")
+        )
+        assert result["verdict"] == "NOT DETERMINED (out-of-domain still image)"
+        assert result["raw_model_verdict"] in {
+            "LIKELY ACCIDENT", "UNCERTAIN", "NO ACCIDENT SIGNAL"
+        }
+    else:
+        assert all(
+            expected in accident
+            for expected in ("Model verdict", "Uncalibrated model score")
+        )
     assert "Incident report" in report or "SOURCE" in report.upper()
     assert "Hospitals" in hospitals or "OSM" in hospitals
     assert "SIMULATED" in dispatch
