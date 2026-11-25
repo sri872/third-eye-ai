@@ -3,7 +3,7 @@
 Covers the observed scenario: a real uploaded image paired with call_01.txt,
 which is explicitly a simulated sample call. The caller reports MG Road near
 Trinity Metro station while a different demo location is associated with the
-upload; vision reports 7 vehicles / 2 visible people and NO ACCIDENT SIGNAL,
+upload; vision reports 7 vehicles / 2 visible people and a NOT DETERMINED still-image assessment,
 while the simulated caller reports 2 vehicles / 1 person, injuries and HURRY.
 No model is retrained or changed here: these are deterministic evidence
 fixtures used to verify separation, provenance and readability.
@@ -48,16 +48,19 @@ def _vision_evidence() -> tuple[AccidentEvent, list[VehicleReport], list[Occupan
         location_name="Uploaded media (simulated demo location used only for hospital lookup)",
         latitude=31.2142,
         longitude=75.7785,
-        severity="none",
+        severity="uncertain",
         vehicles_involved=7,
         casualties_estimated=0,
-        status="not determined (out-of-domain still image)",
+        status="NOT DETERMINED (out-of-domain still image)",
         confidence=0.2166,
         method="TRAINED_MODEL",
         score=0.2166,
-        verdict="NO ACCIDENT SIGNAL",
+        verdict="NOT DETERMINED (out-of-domain still image)",
         persons_near_vehicles_count=0,
-        reasons="Classifier score: 0.2166 -> Verdict: NO ACCIDENT SIGNAL",
+        reasons=(
+            "Still image is outside the dashcam-video training domain. "
+            "Raw classifier output: NO ACCIDENT SIGNAL; uncalibrated score: 0.2166."
+        ),
         data_source="REAL",
     )
     vehicles = [
@@ -99,8 +102,8 @@ class TestSourceSeparatedFusion:
         assert paired_report.call_id == "call_01"
         assert paired_report.data_source == "SIMULATED"
 
-        # Vision verdict stays independent and authoritative for the upload.
-        assert paired_report.verdict == "NO ACCIDENT SIGNAL"
+        # Vision assessment remains source-separated but is not a still-photo clearance.
+        assert paired_report.verdict == "NOT DETERMINED (out-of-domain still image)"
         assert paired_report.verdict_source == "VISION"
         assert paired_report.vision_score == pytest.approx(0.2166)
 
@@ -136,10 +139,10 @@ class TestSourceSeparatedFusion:
         assert paired_report.source_disagreement is True
         conflict = " ".join(paired_report.source_disagreements)
         assert "SOURCE DISAGREEMENT" in conflict
-        assert "NO ACCIDENT SIGNAL" in conflict
+        assert "NOT DETERMINED (out-of-domain still image)" in conflict
         assert "Dispatcher verification required" in conflict
-        assert "never overrides the REAL vision verdict" in conflict
-        assert paired_report.verdict == "NO ACCIDENT SIGNAL"
+        assert "does not establish the visual outcome" in conflict
+        assert paired_report.verdict == "NOT DETERMINED (out-of-domain still image)"
         assert paired_report.urgency_source == "CALLER_SIMULATED"
 
     def test_injuries_come_only_from_simulated_caller(self, paired_report) -> None:
