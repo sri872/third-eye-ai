@@ -1,0 +1,3 @@
+[DATA_SOURCE: SIMULATED]
+Emergency Dispatch Call Transcript - Call ID: call_11_demo_uncertain
+Caller: "I saw a vehicle stopped on the road. I am not sure whether an accident happened."

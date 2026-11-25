@@ -1,0 +1,3 @@
+[DATA_SOURCE: SIMULATED]
+Emergency Dispatch Call Transcript - Call ID: call_03
+Caller: "Major pileup on Outer Ring Road near Bellandur flyover! Four vehicles involved, two trucks and two cars smashed together. At least three people injured, one person trapped and screaming. Huge fuel spill across both lanes, high risk of fire! Critical emergency, dispatch fire truck and multiple ambulances now!"

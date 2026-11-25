@@ -1,0 +1,74 @@
+{
+  "call_01": {
+    "location": "MG Road near Trinity Metro station",
+    "vehicle_count": 2,
+    "vehicle_types": ["car", "sedan", "suv"],
+    "people_involved": 1,
+    "injury_keywords": ["bleeding", "unconscious"],
+    "hazard_keywords": ["smoke"],
+    "urgency_keywords": ["hurry", "immediately"]
+  },
+  "call_02": {
+    "location": "Brigade Road intersection",
+    "vehicle_count": 2,
+    "vehicle_types": ["bus", "motorcycle"],
+    "people_involved": 1,
+    "injury_keywords": ["broken", "pain"],
+    "hazard_keywords": [],
+    "urgency_keywords": ["quickly"]
+  },
+  "call_03": {
+    "location": "Outer Ring Road near Bellandur flyover",
+    "vehicle_count": 4,
+    "vehicle_types": ["truck", "car"],
+    "people_involved": 3,
+    "injury_keywords": ["injured", "trapped"],
+    "hazard_keywords": ["fuel spill", "fire"],
+    "urgency_keywords": ["critical", "now"]
+  },
+  "call_04": {
+    "location": null,
+    "vehicle_count": 2,
+    "vehicle_types": ["car"],
+    "people_involved": null,
+    "injury_keywords": [],
+    "hazard_keywords": [],
+    "urgency_keywords": []
+  },
+  "call_05": {
+    "location": "Commercial Street",
+    "vehicle_count": 5,
+    "vehicle_types": ["car"],
+    "people_involved": null,
+    "injury_keywords": ["burned", "dying"],
+    "hazard_keywords": ["burning", "flames"],
+    "urgency_keywords": ["rush", "immediately"]
+  },
+  "call_06": {
+    "location": "Hosur Road near Silk Board",
+    "vehicle_count": 1,
+    "vehicle_types": ["car"],
+    "people_involved": 1,
+    "injury_keywords": ["motionless", "bleeding", "head injury"],
+    "hazard_keywords": [],
+    "urgency_keywords": ["fast"]
+  },
+  "call_07": {
+    "location": "Indiranagar 100 Feet Road",
+    "vehicle_count": 2,
+    "vehicle_types": ["sedan"],
+    "people_involved": null,
+    "injury_keywords": [],
+    "hazard_keywords": [],
+    "urgency_keywords": []
+  },
+  "call_08": {
+    "location": "Airport Road",
+    "vehicle_count": 1,
+    "vehicle_types": ["truck"],
+    "people_involved": null,
+    "injury_keywords": [],
+    "hazard_keywords": [],
+    "urgency_keywords": []
+  }
+}

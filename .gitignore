@@ -1,0 +1,49 @@
+# Python / virtual environments
+.venv/
+venv/
+ENV/
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Testing and coverage
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Local databases: recreate with db.database.init_db() when needed
+*.db
+*.sqlite
+*.sqlite3
+
+# Training-only caches (regenerate with scripts/extract_frames.py and the training script)
+data/frames/
+data/embeddings.*
+
+# Generated inference outputs: keep the committed evidence needed by the app/report
+data/outputs/*
+!data/outputs/dispatch_summary.json
+!data/outputs/demo_verification.json
+!data/outputs/streamlit_workflow.json
+!data/outputs/routes/
+data/outputs/crops/
+
+# Secrets and private credentials
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+id_rsa*
+*.p12
+
+# macOS / editors / Streamlit local state
+.DS_Store
+.idea/
+.vscode/
+.streamlit/
+
+# Logs and temporary files
+*.log
+*.tmp
+*.swp

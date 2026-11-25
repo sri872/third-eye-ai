@@ -1,0 +1,3 @@
+[DATA_SOURCE: SIMULATED]
+Emergency Dispatch Call Transcript - Call ID: call_05
+Caller: "Huge multi-car catastrophe at Commercial Street! Five cars are crushed into a burning pile. Multiple passengers are severely burned and dying. Flames everywhere! Rush all emergency units immediately!"

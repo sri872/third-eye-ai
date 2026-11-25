@@ -1,0 +1,3 @@
+[DATA_SOURCE: SIMULATED]
+Emergency Dispatch Call Transcript - Call ID: call_01
+Caller: "There is a bad crash on MG Road near Trinity Metro station. Two cars collided head-on, a sedan and a red SUV. One driver is bleeding from the head and unconscious. I see smoke coming from under the hood, hurry please, send an ambulance immediately!"

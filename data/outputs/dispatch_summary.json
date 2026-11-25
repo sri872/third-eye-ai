@@ -1,0 +1,3513 @@
+{
+  "generated_at": "2026-11-24T19:10:51.884452+00:00",
+  "simulation_notice": "SIMULATED DISPATCH \u2014 NO REAL AMBULANCE HAS BEEN CONTACTED",
+  "gps_status": "NOT AVAILABLE \u2014 no device GPS verification was performed",
+  "traffic_note": "Estimated from OSM speed data; no live traffic information is available.",
+  "disclaimers": [
+    "\u00a9 OpenStreetMap contributors",
+    "Estimated from OSM speed data, no live traffic",
+    "Routing covers this corridor only (Phagwara corridor: 75.69-75.80\u00b0E, 31.20-31.27\u00b0N)"
+  ],
+  "scenarios": [
+    {
+      "location_id": "loc-phagwara-banga-road",
+      "location_name": "Banga Road Commercial Intersection",
+      "incident": {
+        "lat": 31.2185,
+        "lon": 75.7852,
+        "data_source": "SIMULATED"
+      },
+      "severity": "not determined (demo placement)",
+      "ambulance": {
+        "id": "amb-phagwara-04",
+        "callsign": "AMB-DELTA-04",
+        "base_name": "Gee Bee Hospital and Maternity Home",
+        "base_lat": 31.219951,
+        "base_lon": 75.778225,
+        "equipment_level": "Basic",
+        "eta_seconds": 545.5,
+        "driving_distance_km": 3.98,
+        "selection_reason": "Chosen: lowest recorded simulated road-network ETA (545.5 s) among 6 simulated units (derived from stored ETAs).",
+        "selection_criteria": "Lowest simulated road-network travel time from A* over the cached OSM graph; ties broken by shorter straight-line distance. No live GPS, vehicle location, operational status or real ambulance contact is used.",
+        "data_source": "SIMULATED"
+      },
+      "hospital": {
+        "osm_id": "osm-node-7150766771",
+        "name": "Civil Hospital Phagwara",
+        "lat": 31.230527,
+        "lon": 75.762824,
+        "phone": "1824229369",
+        "emergency_tag": null,
+        "specialties": null,
+        "emergency_capability": "Emergency department and specialties not specified in OpenStreetMap; capability unverified",
+        "data_source": "REAL",
+        "straight_line_km": 2.51,
+        "driving_km": 4.25,
+        "transit_seconds": 546.8
+      },
+      "leg_to_incident": [
+        [
+          31.219389,
+          75.778444
+        ],
+        [
+          31.221225,
+          75.777817
+        ],
+        [
+          31.221381,
+          75.778252
+        ],
+        [
+          31.221596,
+          75.778808
+        ],
+        [
+          31.221754,
+          75.778532
+        ],
+        [
+          31.223236,
+          75.778456
+        ],
+        [
+          31.224529,
+          75.777765
+        ],
+        [
+          31.224714,
+          75.777595
+        ],
+        [
+          31.224903,
+          75.77742
+        ],
+        [
+          31.225944,
+          75.776464
+        ],
+        [
+          31.226042,
+          75.776401
+        ],
+        [
+          31.226299,
+          75.776058
+        ],
+        [
+          31.228666,
+          75.774743
+        ],
+        [
+          31.229952,
+          75.775547
+        ],
+        [
+          31.23077,
+          75.776004
+        ],
+        [
+          31.231097,
+          75.77616
+        ],
+        [
+          31.232485,
+          75.7773
+        ],
+        [
+          31.233042,
+          75.777495
+        ],
+        [
+          31.234236,
+          75.778222
+        ],
+        [
+          31.23461,
+          75.77911
+        ],
+        [
+          31.235004,
+          75.779566
+        ],
+        [
+          31.234495,
+          75.780009
+        ],
+        [
+          31.234455,
+          75.780664
+        ],
+        [
+          31.234392,
+          75.781288
+        ],
+        [
+          31.220128,
+          75.78555
+        ]
+      ],
+      "leg_to_hospital": [
+        [
+          31.220128,
+          75.78555
+        ],
+        [
+          31.234392,
+          75.781288
+        ],
+        [
+          31.234455,
+          75.780664
+        ],
+        [
+          31.234495,
+          75.780009
+        ],
+        [
+          31.235004,
+          75.779566
+        ],
+        [
+          31.23461,
+          75.77911
+        ],
+        [
+          31.234236,
+          75.778222
+        ],
+        [
+          31.234463,
+          75.777383
+        ],
+        [
+          31.234893,
+          75.775683
+        ],
+        [
+          31.235087,
+          75.774915
+        ],
+        [
+          31.235288,
+          75.774078
+        ],
+        [
+          31.235527,
+          75.773078
+        ],
+        [
+          31.234525,
+          75.772744
+        ],
+        [
+          31.234226,
+          75.772642
+        ],
+        [
+          31.234155,
+          75.772618
+        ],
+        [
+          31.232619,
+          75.772094
+        ],
+        [
+          31.232223,
+          75.771961
+        ],
+        [
+          31.231582,
+          75.771745
+        ],
+        [
+          31.230992,
+          75.771481
+        ],
+        [
+          31.22999,
+          75.770905
+        ],
+        [
+          31.229392,
+          75.770472
+        ],
+        [
+          31.230414,
+          75.76887
+        ],
+        [
+          31.230762,
+          75.768253
+        ],
+        [
+          31.232087,
+          75.765692
+        ],
+        [
+          31.232123,
+          75.765535
+        ],
+        [
+          31.232127,
+          75.765229
+        ],
+        [
+          31.232395,
+          75.765213
+        ],
+        [
+          31.231879,
+          75.76416
+        ],
+        [
+          31.23168,
+          75.763753
+        ],
+        [
+          31.231099,
+          75.763083
+        ],
+        [
+          31.23087,
+          75.76273
+        ],
+        [
+          31.230546,
+          75.763136
+        ]
+      ],
+      "route_verification": {
+        "leg1_start": [
+          31.219389,
+          75.778444
+        ],
+        "leg1_end": [
+          31.220128,
+          75.78555
+        ],
+        "leg2_start": [
+          31.220128,
+          75.78555
+        ],
+        "leg2_end": [
+          31.230546,
+          75.763136
+        ],
+        "legs_join_at_incident": true,
+        "repeated_segments_leg1": 0,
+        "repeated_segments_leg2": 0,
+        "shared_segments_between_legs": 0,
+        "leg1_polyline_km": 3.91,
+        "leg2_polyline_km": 4.19,
+        "leg1_points": 25,
+        "leg2_points": 32
+      },
+      "location_context": {
+        "dispatch_lat": 31.2185,
+        "dispatch_lon": 75.7852,
+        "used_for": "Both A* route legs, leg distances, leg travel times and totals in Tab 6",
+        "caller_reported": null,
+        "caller_used_for": "Nothing in Tab 6; caller location is preserved separately from Tab 4",
+        "hospital_search": null,
+        "hospital_search_used_for": "Tab 5 straight-line lookup only; never substituted in Tab 6",
+        "gps_status": "NOT AVAILABLE \u2014 no device GPS verification was performed"
+      },
+      "total_km": 8.23,
+      "total_seconds": 1092.3,
+      "traffic_note": "Estimated from OSM speed data; no live traffic information is available.",
+      "simulation_notice": "SIMULATED DISPATCH \u2014 NO REAL AMBULANCE HAS BEEN CONTACTED",
+      "ranking_formula": "adjusted_cost_sec = travel_time_sec * (1.0 + (suitability_penalty * 2.0))",
+      "ranking_priority": "source-reported emergency department (OSM emergency=yes) first; then facility category (trauma centre before hospital); then adjusted road travel time. This is a transparent heuristic, not verified medical suitability.",
+      "trajectory": [
+        {
+          "t_seconds": 0.0,
+          "lat": 31.219389,
+          "lon": 75.778444,
+          "leg": "leg1_ambulance_to_incident"
+        },
+        {
+          "t_seconds": 15.0,
+          "lat": 31.220317,
+          "lon": 75.778127,
+          "leg": "leg1_ambulance_to_incident"
+        },
+        {
+          "t_seconds": 30.0,
+          "lat": 31.221233,
+          "lon": 75.777839,
+          "leg": "leg1_ambulance_to_incident"
+        },
+        {
+          "t_seconds": 45.0,
+          "lat": 31.22163,
+          "lon": 75.778748,
+          "leg": "leg1_ambulance_to_incident"
+        },
+        {
+          "t_seconds": 60.0,
+          "lat": 31.222497,
+          "lon": 75.778494,
+          "leg": "leg1_ambulance_to_incident"
+        },
+        {
+          "t_seconds": 75.0,
+          "lat": 31.223442,
+          "lon": 75.778346,
+          "leg": "leg1_ambulance_to_incident"
+        },
+        {
+          "t_seconds": 90.0,
+          "lat": 31.224321,
+          "lon": 75.777876,
+          "leg": "leg1_ambulance_to_incident"
+        },
+        {
+          "t_seconds": 105.0,
+          "lat": 31.225109,
+          "lon": 75.777231,
+          "leg": "leg1_ambulance_to_incident"
+        },
+        {
+          "t_seconds": 120.0,
+          "lat": 31.225869,
+          "lon": 75.776533,
+          "leg": "leg1_ambulance_to_incident"
+        },
+        {
+          "t_seconds": 135.0,
+          "lat": 31.226633,
+          "lon": 75.775873,
+          "leg": "leg1_ambulance_to_incident"
+        },
+        {
+          "t_seconds": 150.0,
+          "lat": 31.227506,
+          "lon": 75.775388,
+          "leg": "leg1_ambulance_to_incident"
+        },
+        {
+          "t_seconds": 165.0,
+          "lat": 31.228379,
+          "lon": 75.774903,
+          "leg": "leg1_ambulance_to_incident"
+        },
+        {
+          "t_seconds": 180.0,
+          "lat": 31.229238,
+          "lon": 75.7751,
+          "leg": "leg1_ambulance_to_incident"
+        },
+        {
+          "t_seconds": 195.0,
+          "lat": 31.230093,
+          "lon": 75.775626,
+          "leg": "leg1_ambulance_to_incident"
+        },
+        {
+          "t_seconds": 210.0,
+          "lat": 31.23097,
+          "lon": 75.7761,
+          "leg": "leg1_ambulance_to_incident"
+        },
+        {
+          "t_seconds": 225.0,
+          "lat": 31.231776,
+          "lon": 75.776718,
+          "leg": "leg1_ambulance_to_incident"
+        },
+        {
+          "t_seconds": 240.0,
+          "lat": 31.232581,
+          "lon": 75.777334,
+          "leg": "leg1_ambulance_to_incident"
+        },
+        {
+          "t_seconds": 255.0,
+          "lat": 31.233472,
+          "lon": 75.777757,
+          "leg": "leg1_ambulance_to_incident"
+        },
+        {
+          "t_seconds": 270.0,
+          "lat": 31.234283,
+          "lon": 75.778333,
+          "leg": "leg1_ambulance_to_incident"
+        },
+        {
+          "t_seconds": 285.0,
+          "lat": 31.23477,
+          "lon": 75.779296,
+          "leg": "leg1_ambulance_to_incident"
+        },
+        {
+          "t_seconds": 300.0,
+          "lat": 31.234495,
+          "lon": 75.780013,
+          "leg": "leg1_ambulance_to_incident"
+        },
+        {
+          "t_seconds": 315.0,
+          "lat": 31.234407,
+          "lon": 75.781138,
+          "leg": "leg1_ambulance_to_incident"
+        },
+        {
+          "t_seconds": 330.0,
+          "lat": 31.233581,
+          "lon": 75.78153,
+          "leg": "leg1_ambulance_to_incident"
+        },
+        {
+          "t_seconds": 345.0,
+          "lat": 31.232644,
+          "lon": 75.78181,
+          "leg": "leg1_ambulance_to_incident"
+        },
+        {
+          "t_seconds": 360.0,
+          "lat": 31.231708,
+          "lon": 75.78209,
+          "leg": "leg1_ambulance_to_incident"
+        },
+        {
+          "t_seconds": 375.0,
+          "lat": 31.230772,
+          "lon": 75.78237,
+          "leg": "leg1_ambulance_to_incident"
+        },
+        {
+          "t_seconds": 390.0,
+          "lat": 31.229835,
+          "lon": 75.78265,
+          "leg": "leg1_ambulance_to_incident"
+        },
+        {
+          "t_seconds": 405.0,
+          "lat": 31.228899,
+          "lon": 75.782929,
+          "leg": "leg1_ambulance_to_incident"
+        },
+        {
+          "t_seconds": 420.0,
+          "lat": 31.227962,
+          "lon": 75.783209,
+          "leg": "leg1_ambulance_to_incident"
+        },
+        {
+          "t_seconds": 435.0,
+          "lat": 31.227026,
+          "lon": 75.783489,
+          "leg": "leg1_ambulance_to_incident"
+        },
+        {
+          "t_seconds": 450.0,
+          "lat": 31.22609,
+          "lon": 75.783769,
+          "leg": "leg1_ambulance_to_incident"
+        },
+        {
+          "t_seconds": 465.0,
+          "lat": 31.225153,
+          "lon": 75.784048,
+          "leg": "leg1_ambulance_to_incident"
+        },
+        {
+          "t_seconds": 480.0,
+          "lat": 31.224217,
+          "lon": 75.784328,
+          "leg": "leg1_ambulance_to_incident"
+        },
+        {
+          "t_seconds": 495.0,
+          "lat": 31.22328,
+          "lon": 75.784608,
+          "leg": "leg1_ambulance_to_incident"
+        },
+        {
+          "t_seconds": 510.0,
+          "lat": 31.222344,
+          "lon": 75.784888,
+          "leg": "leg1_ambulance_to_incident"
+        },
+        {
+          "t_seconds": 525.0,
+          "lat": 31.221408,
+          "lon": 75.785168,
+          "leg": "leg1_ambulance_to_incident"
+        },
+        {
+          "t_seconds": 540.0,
+          "lat": 31.220471,
+          "lon": 75.785447,
+          "leg": "leg1_ambulance_to_incident"
+        },
+        {
+          "t_seconds": 545.5,
+          "lat": 31.220128,
+          "lon": 75.78555,
+          "leg": "leg1_ambulance_to_incident"
+        },
+        {
+          "t_seconds": 560.5,
+          "lat": 31.221129,
+          "lon": 75.785251,
+          "leg": "leg2_incident_to_hospital"
+        },
+        {
+          "t_seconds": 575.5,
+          "lat": 31.222131,
+          "lon": 75.784952,
+          "leg": "leg2_incident_to_hospital"
+        },
+        {
+          "t_seconds": 590.5,
+          "lat": 31.223132,
+          "lon": 75.784652,
+          "leg": "leg2_incident_to_hospital"
+        },
+        {
+          "t_seconds": 605.5,
+          "lat": 31.224134,
+          "lon": 75.784353,
+          "leg": "leg2_incident_to_hospital"
+        },
+        {
+          "t_seconds": 620.5,
+          "lat": 31.225135,
+          "lon": 75.784054,
+          "leg": "leg2_incident_to_hospital"
+        },
+        {
+          "t_seconds": 635.5,
+          "lat": 31.226136,
+          "lon": 75.783755,
+          "leg": "leg2_incident_to_hospital"
+        },
+        {
+          "t_seconds": 650.5,
+          "lat": 31.227138,
+          "lon": 75.783456,
+          "leg": "leg2_incident_to_hospital"
+        },
+        {
+          "t_seconds": 665.5,
+          "lat": 31.228139,
+          "lon": 75.783156,
+          "leg": "leg2_incident_to_hospital"
+        },
+        {
+          "t_seconds": 680.5,
+          "lat": 31.22914,
+          "lon": 75.782857,
+          "leg": "leg2_incident_to_hospital"
+        },
+        {
+          "t_seconds": 695.5,
+          "lat": 31.230142,
+          "lon": 75.782558,
+          "leg": "leg2_incident_to_hospital"
+        },
+        {
+          "t_seconds": 710.5,
+          "lat": 31.231143,
+          "lon": 75.782259,
+          "leg": "leg2_incident_to_hospital"
+        },
+        {
+          "t_seconds": 725.5,
+          "lat": 31.232145,
+          "lon": 75.78196,
+          "leg": "leg2_incident_to_hospital"
+        },
+        {
+          "t_seconds": 740.5,
+          "lat": 31.233146,
+          "lon": 75.78166,
+          "leg": "leg2_incident_to_hospital"
+        },
+        {
+          "t_seconds": 755.5,
+          "lat": 31.234147,
+          "lon": 75.781361,
+          "leg": "leg2_incident_to_hospital"
+        },
+        {
+          "t_seconds": 770.5,
+          "lat": 31.234472,
+          "lon": 75.78038,
+          "leg": "leg2_incident_to_hospital"
+        },
+        {
+          "t_seconds": 785.5,
+          "lat": 31.234946,
+          "lon": 75.779499,
+          "leg": "leg2_incident_to_hospital"
+        },
+        {
+          "t_seconds": 800.5,
+          "lat": 31.234362,
+          "lon": 75.778522,
+          "leg": "leg2_incident_to_hospital"
+        },
+        {
+          "t_seconds": 815.5,
+          "lat": 31.234462,
+          "lon": 75.777388,
+          "leg": "leg2_incident_to_hospital"
+        },
+        {
+          "t_seconds": 830.5,
+          "lat": 31.234755,
+          "lon": 75.776229,
+          "leg": "leg2_incident_to_hospital"
+        },
+        {
+          "t_seconds": 845.5,
+          "lat": 31.235048,
+          "lon": 75.77507,
+          "leg": "leg2_incident_to_hospital"
+        },
+        {
+          "t_seconds": 860.5,
+          "lat": 31.235329,
+          "lon": 75.773907,
+          "leg": "leg2_incident_to_hospital"
+        },
+        {
+          "t_seconds": 875.5,
+          "lat": 31.235241,
+          "lon": 75.772983,
+          "leg": "leg2_incident_to_hospital"
+        },
+        {
+          "t_seconds": 890.5,
+          "lat": 31.234247,
+          "lon": 75.772649,
+          "leg": "leg2_incident_to_hospital"
+        },
+        {
+          "t_seconds": 905.5,
+          "lat": 31.233255,
+          "lon": 75.772311,
+          "leg": "leg2_incident_to_hospital"
+        },
+        {
+          "t_seconds": 920.5,
+          "lat": 31.232262,
+          "lon": 75.771974,
+          "leg": "leg2_incident_to_hospital"
+        },
+        {
+          "t_seconds": 935.5,
+          "lat": 31.231278,
+          "lon": 75.771609,
+          "leg": "leg2_incident_to_hospital"
+        },
+        {
+          "t_seconds": 950.5,
+          "lat": 31.230339,
+          "lon": 75.771106,
+          "leg": "leg2_incident_to_hospital"
+        },
+        {
+          "t_seconds": 965.5,
+          "lat": 31.229442,
+          "lon": 75.770508,
+          "leg": "leg2_incident_to_hospital"
+        },
+        {
+          "t_seconds": 980.5,
+          "lat": 31.229975,
+          "lon": 75.769558,
+          "leg": "leg2_incident_to_hospital"
+        },
+        {
+          "t_seconds": 995.5,
+          "lat": 31.230579,
+          "lon": 75.768578,
+          "leg": "leg2_incident_to_hospital"
+        },
+        {
+          "t_seconds": 1010.5,
+          "lat": 31.231125,
+          "lon": 75.767552,
+          "leg": "leg2_incident_to_hospital"
+        },
+        {
+          "t_seconds": 1025.5,
+          "lat": 31.23166,
+          "lon": 75.766518,
+          "leg": "leg2_incident_to_hospital"
+        },
+        {
+          "t_seconds": 1040.5,
+          "lat": 31.232124,
+          "lon": 75.765454,
+          "leg": "leg2_incident_to_hospital"
+        },
+        {
+          "t_seconds": 1055.5,
+          "lat": 31.23211,
+          "lon": 75.764632,
+          "leg": "leg2_incident_to_hospital"
+        },
+        {
+          "t_seconds": 1070.5,
+          "lat": 31.231561,
+          "lon": 75.763615,
+          "leg": "leg2_incident_to_hospital"
+        },
+        {
+          "t_seconds": 1085.5,
+          "lat": 31.230866,
+          "lon": 75.762735,
+          "leg": "leg2_incident_to_hospital"
+        },
+        {
+          "t_seconds": 1092.3,
+          "lat": 31.230546,
+          "lon": 75.763136,
+          "leg": "leg2_incident_to_hospital"
+        }
+      ],
+      "ambulance_alternatives": [
+        {
+          "id": "amb-phagwara-04",
+          "callsign": "AMB-DELTA-04",
+          "base_name": "Gee Bee Hospital and Maternity Home",
+          "base_lat": 31.219951,
+          "base_lon": 75.778225,
+          "equipment_level": null,
+          "eta_seconds": 545.5,
+          "driving_distance_km": 3.98,
+          "selection_reason": "Chosen: lowest recorded simulated road-network ETA (545.5 s) among 6 simulated units (derived from stored ETAs).",
+          "chosen": true
+        },
+        {
+          "id": "amb-phagwara-01",
+          "callsign": "AMB-ALPHA-01",
+          "base_name": "Civil Hospital Phagwara",
+          "base_lat": 31.230527,
+          "base_lon": 75.762824,
+          "equipment_level": null,
+          "eta_seconds": 546.8,
+          "driving_distance_km": 4.25,
+          "selection_reason": "Not chosen: recorded simulated road-network ETA (546.8 s) is longer than the selected unit (545.5 s) (derived from stored ETAs).",
+          "chosen": false
+        },
+        {
+          "id": "amb-phagwara-05",
+          "callsign": "AMB-ECHO-05",
+          "base_name": "Sharma Children Hospital",
+          "base_lat": 31.218129,
+          "base_lon": 75.775487,
+          "equipment_level": null,
+          "eta_seconds": 601.9,
+          "driving_distance_km": 4.4,
+          "selection_reason": "Not chosen: recorded simulated road-network ETA (601.9 s) is longer than the selected unit (545.5 s) (derived from stored ETAs).",
+          "chosen": false
+        },
+        {
+          "id": "amb-phagwara-02",
+          "callsign": "AMB-BRAVO-02",
+          "base_name": "Gandhi Hospital (P) Ltd",
+          "base_lat": 31.216584,
+          "base_lon": 75.776725,
+          "equipment_level": null,
+          "eta_seconds": 635.4,
+          "driving_distance_km": 4.63,
+          "selection_reason": "Not chosen: recorded simulated road-network ETA (635.4 s) is longer than the selected unit (545.5 s) (derived from stored ETAs).",
+          "chosen": false
+        },
+        {
+          "id": "amb-phagwara-06",
+          "callsign": "AMB-FOXTROT-06",
+          "base_name": "Anoop Hospital And Heart Care Centre",
+          "base_lat": 31.215215,
+          "base_lon": 75.777335,
+          "equipment_level": null,
+          "eta_seconds": 640.1,
+          "driving_distance_km": 4.74,
+          "selection_reason": "Not chosen: recorded simulated road-network ETA (640.1 s) is longer than the selected unit (545.5 s) (derived from stored ETAs).",
+          "chosen": false
+        },
+        {
+          "id": "amb-phagwara-03",
+          "callsign": "AMB-CHARLIE-03",
+          "base_name": "Parhar Hospital",
+          "base_lat": 31.214717,
+          "base_lon": 75.775752,
+          "equipment_level": null,
+          "eta_seconds": 657.4,
+          "driving_distance_km": 4.78,
+          "selection_reason": "Not chosen: recorded simulated road-network ETA (657.4 s) is longer than the selected unit (545.5 s) (derived from stored ETAs).",
+          "chosen": false
+        }
+      ],
+      "hospital_alternatives": [
+        {
+          "osm_id": "osm-node-7150766771",
+          "name": "Civil Hospital Phagwara",
+          "driving_km": 4.25,
+          "transit_seconds": 546.8,
+          "penalty": 0.0,
+          "adjusted_cost_seconds": 546.8,
+          "considered": true,
+          "note": "Chosen: lowest adjusted travel time (546.8s) among dispatch-eligible corridor facilities; emergency capability unverified",
+          "emergency_capability": "Emergency department and specialties not specified in OpenStreetMap; capability unverified",
+          "facility_category": null,
+          "emergency_status": null,
+          "recommended_for_emergency": null,
+          "suitability_rule": null
+        },
+        {
+          "osm_id": "osm-node-7058964861",
+          "name": "Gandhi Hospital (P) Ltd",
+          "driving_km": 4.63,
+          "transit_seconds": 635.4,
+          "penalty": 0.0,
+          "adjusted_cost_seconds": 635.4,
+          "considered": true,
+          "note": "Not chosen: driving time (635.4s) is longer than chosen hospital (546.8s)",
+          "emergency_capability": "Emergency department and specialties not specified in OpenStreetMap; capability unverified",
+          "facility_category": null,
+          "emergency_status": null,
+          "recommended_for_emergency": null,
+          "suitability_rule": null
+        },
+        {
+          "osm_id": "osm-node-7105996895",
+          "name": "Parhar Hospital",
+          "driving_km": 5.58,
+          "transit_seconds": 639.8,
+          "penalty": 0.0,
+          "adjusted_cost_seconds": 639.8,
+          "considered": true,
+          "note": "Not chosen: driving time (639.8s) is longer than chosen hospital (546.8s)",
+          "emergency_capability": "Emergency department and specialties not specified in OpenStreetMap; capability unverified",
+          "facility_category": null,
+          "emergency_status": null,
+          "recommended_for_emergency": null,
+          "suitability_rule": null
+        },
+        {
+          "osm_id": "osm-node-7065234238",
+          "name": "Gee Bee Hospital and Maternity Home",
+          "driving_km": 3.98,
+          "transit_seconds": 545.5,
+          "penalty": 0.3,
+          "adjusted_cost_seconds": 872.8,
+          "considered": true,
+          "note": "Not chosen: down-ranked by suitability rule (Down-ranked by suitability rule: facility specialized in maternity, but incident has no reported maternity requirement.)",
+          "emergency_capability": "Emergency department and specialties not specified in OpenStreetMap; capability unverified",
+          "facility_category": null,
+          "emergency_status": null,
+          "recommended_for_emergency": null,
+          "suitability_rule": "Down-ranked by suitability rule: facility specialized in maternity, but incident has no reported maternity requirement."
+        },
+        {
+          "osm_id": "osm-node-7059030148",
+          "name": "Sharma Children Hospital",
+          "driving_km": 4.4,
+          "transit_seconds": 601.9,
+          "penalty": 0.3,
+          "adjusted_cost_seconds": 963.1,
+          "considered": true,
+          "note": "Not chosen: down-ranked by suitability rule (Down-ranked by suitability rule: facility specialized in children, but incident has no reported children requirement.)",
+          "emergency_capability": "Emergency department and specialties not specified in OpenStreetMap; capability unverified",
+          "facility_category": null,
+          "emergency_status": null,
+          "recommended_for_emergency": null,
+          "suitability_rule": "Down-ranked by suitability rule: facility specialized in children, but incident has no reported children requirement."
+        },
+        {
+          "osm_id": "osm-node-7062747354",
+          "name": "Mitra Eye Hospital",
+          "driving_km": 4.64,
+          "transit_seconds": 627.7,
+          "penalty": 0.3,
+          "adjusted_cost_seconds": 1004.3,
+          "considered": true,
+          "note": "Not chosen: down-ranked by suitability rule (Down-ranked by suitability rule: facility specialized in eye, but incident has no reported eye requirement.)",
+          "emergency_capability": "Emergency department and specialties not specified in OpenStreetMap; capability unverified",
+          "facility_category": null,
+          "emergency_status": null,
+          "recommended_for_emergency": null,
+          "suitability_rule": "Down-ranked by suitability rule: facility specialized in eye, but incident has no reported eye requirement."
+        },
+        {
+          "osm_id": "osm-node-7053504658",
+          "name": "Anoop Hospital And Heart Care Centre",
+          "driving_km": 4.74,
+          "transit_seconds": 640.1,
+          "penalty": 0.3,
+          "adjusted_cost_seconds": 1024.2,
+          "considered": true,
+          "note": "Not chosen: down-ranked by suitability rule (Down-ranked by suitability rule: facility specialized in heart/cardiac, but incident has no reported heart/cardiac requirement.)",
+          "emergency_capability": "Emergency department and specialties not specified in OpenStreetMap; capability unverified",
+          "facility_category": null,
+          "emergency_status": null,
+          "recommended_for_emergency": null,
+          "suitability_rule": "Down-ranked by suitability rule: facility specialized in heart/cardiac, but incident has no reported heart/cardiac requirement."
+        },
+        {
+          "osm_id": "osm-node-7104017976",
+          "name": "Virk Hospital And Maternity Home",
+          "driving_km": 5.68,
+          "transit_seconds": 651.0,
+          "penalty": 0.3,
+          "adjusted_cost_seconds": 1041.6,
+          "considered": true,
+          "note": "Not chosen: down-ranked by suitability rule (Down-ranked by suitability rule: facility specialized in maternity, but incident has no reported maternity requirement.)",
+          "emergency_capability": "Emergency department and specialties not specified in OpenStreetMap; capability unverified",
+          "facility_category": null,
+          "emergency_status": null,
+          "recommended_for_emergency": null,
+          "suitability_rule": "Down-ranked by suitability rule: facility specialized in maternity, but incident has no reported maternity requirement."
+        }
+      ],
+      "map_png": "data/outputs/routes/loc-phagwara-banga-road_route.png",
+      "geojson": "data/outputs/routes/loc-phagwara-banga-road_route.geojson"
+    },
+    {
+      "location_id": "loc-phagwara-hoshiarpur-road",
+      "location_name": "Phagwara-Hoshiarpur State Highway (Rural Link)",
+      "incident": {
+        "lat": 31.2455,
+        "lon": 75.7802,
+        "data_source": "SIMULATED"
+      },
+      "severity": "not determined (demo placement)",
+      "ambulance": {
+        "id": "amb-phagwara-01",
+        "callsign": "AMB-ALPHA-01",
+        "base_name": "Civil Hospital Phagwara",
+        "base_lat": 31.230527,
+        "base_lon": 75.762824,
+        "equipment_level": "Critical Care",
+        "eta_seconds": 382.2,
+        "driving_distance_km": 3.6,
+        "selection_reason": "Chosen: lowest recorded simulated road-network ETA (382.2 s) among 6 simulated units (derived from stored ETAs).",
+        "selection_criteria": "Lowest simulated road-network travel time from A* over the cached OSM graph; ties broken by shorter straight-line distance. No live GPS, vehicle location, operational status or real ambulance contact is used.",
+        "data_source": "SIMULATED"
+      },
+      "hospital": {
+        "osm_id": "osm-node-7150766771",
+        "name": "Civil Hospital Phagwara",
+        "lat": 31.230527,
+        "lon": 75.762824,
+        "phone": "1824229369",
+        "emergency_tag": null,
+        "specialties": null,
+        "emergency_capability": "Emergency department and specialties not specified in OpenStreetMap; capability unverified",
+        "data_source": "REAL",
+        "straight_line_km": 2.35,
+        "driving_km": 3.6,
+        "transit_seconds": 382.3
+      },
+      "leg_to_incident": [
+        [
+          31.230546,
+          75.763136
+        ],
+        [
+          31.23087,
+          75.76273
+        ],
+        [
+          31.231099,
+          75.763083
+        ],
+        [
+          31.23168,
+          75.763753
+        ],
+        [
+          31.231879,
+          75.76416
+        ],
+        [
+          31.232395,
+          75.765213
+        ],
+        [
+          31.232127,
+          75.765229
+        ],
+        [
+          31.232123,
+          75.765535
+        ],
+        [
+          31.232087,
+          75.765692
+        ],
+        [
+          31.230762,
+          75.768253
+        ],
+        [
+          31.230414,
+          75.76887
+        ],
+        [
+          31.229392,
+          75.770472
+        ],
+        [
+          31.22999,
+          75.770905
+        ],
+        [
+          31.230992,
+          75.771481
+        ],
+        [
+          31.231582,
+          75.771745
+        ],
+        [
+          31.232223,
+          75.771961
+        ],
+        [
+          31.232619,
+          75.772094
+        ],
+        [
+          31.234155,
+          75.772618
+        ],
+        [
+          31.234226,
+          75.772642
+        ],
+        [
+          31.234525,
+          75.772744
+        ],
+        [
+          31.235527,
+          75.773078
+        ],
+        [
+          31.236093,
+          75.77326
+        ],
+        [
+          31.236387,
+          75.773355
+        ],
+        [
+          31.23681,
+          75.773491
+        ],
+        [
+          31.236872,
+          75.773511
+        ],
+        [
+          31.237917,
+          75.773855
+        ],
+        [
+          31.240081,
+          75.77446
+        ],
+        [
+          31.241657,
+          75.774654
+        ],
+        [
+          31.241854,
+          75.774682
+        ],
+        [
+          31.24197,
+          75.774708
+        ],
+        [
+          31.242446,
+          75.774817
+        ],
+        [
+          31.242533,
+          75.774832
+        ],
+        [
+          31.242867,
+          75.77486
+        ],
+        [
+          31.245491,
+          75.775207
+        ],
+        [
+          31.245443,
+          75.783279
+        ]
+      ],
+      "leg_to_hospital": [
+        [
+          31.245443,
+          75.783279
+        ],
+        [
+          31.245491,
+          75.775207
+        ],
+        [
+          31.242867,
+          75.77486
+        ],
+        [
+          31.242533,
+          75.774832
+        ],
+        [
+          31.242446,
+          75.774817
+        ],
+        [
+          31.24197,
+          75.774708
+        ],
+        [
+          31.241854,
+          75.774682
+        ],
+        [
+          31.241657,
+          75.774654
+        ],
+        [
+          31.240081,
+          75.77446
+        ],
+        [
+          31.237917,
+          75.773855
+        ],
+        [
+          31.236872,
+          75.773511
+        ],
+        [
+          31.23681,
+          75.773491
+        ],
+        [
+          31.236387,
+          75.773355
+        ],
+        [
+          31.236093,
+          75.77326
+        ],
+        [
+          31.235527,
+          75.773078
+        ],
+        [
+          31.234525,
+          75.772744
+        ],
+        [
+          31.234226,
+          75.772642
+        ],
+        [
+          31.234155,
+          75.772618
+        ],
+        [
+          31.232619,
+          75.772094
+        ],
+        [
+          31.232223,
+          75.771961
+        ],
+        [
+          31.231582,
+          75.771745
+        ],
+        [
+          31.230992,
+          75.771481
+        ],
+        [
+          31.22999,
+          75.770905
+        ],
+        [
+          31.229392,
+          75.770472
+        ],
+        [
+          31.230414,
+          75.76887
+        ],
+        [
+          31.230762,
+          75.768253
+        ],
+        [
+          31.232087,
+          75.765692
+        ],
+        [
+          31.232123,
+          75.765535
+        ],
+        [
+          31.232127,
+          75.765229
+        ],
+        [
+          31.232395,
+          75.765213
+        ],
+        [
+          31.231879,
+          75.76416
+        ],
+        [
+          31.23168,
+          75.763753
+        ],
+        [
+          31.231099,
+          75.763083
+        ],
+        [
+          31.23087,
+          75.76273
+        ],
+        [
+          31.230546,
+          75.763136
+        ]
+      ],
+      "route_verification": {
+        "leg1_start": [
+          31.230546,
+          75.763136
+        ],
+        "leg1_end": [
+          31.245443,
+          75.783279
+        ],
+        "leg2_start": [
+          31.245443,
+          75.783279
+        ],
+        "leg2_end": [
+          31.230546,
+          75.763136
+        ],
+        "legs_join_at_incident": true,
+        "repeated_segments_leg1": 0,
+        "repeated_segments_leg2": 0,
+        "shared_segments_between_legs": 0,
+        "leg1_polyline_km": 3.59,
+        "leg2_polyline_km": 3.59,
+        "leg1_points": 35,
+        "leg2_points": 35
+      },
+      "location_context": {
+        "dispatch_lat": 31.2455,
+        "dispatch_lon": 75.7802,
+        "used_for": "Both A* route legs, leg distances, leg travel times and totals in Tab 6",
+        "caller_reported": null,
+        "caller_used_for": "Nothing in Tab 6; caller location is preserved separately from Tab 4",
+        "hospital_search": null,
+        "hospital_search_used_for": "Tab 5 straight-line lookup only; never substituted in Tab 6",
+        "gps_status": "NOT AVAILABLE \u2014 no device GPS verification was performed"
+      },
+      "total_km": 7.2,
+      "total_seconds": 764.5,
+      "traffic_note": "Estimated from OSM speed data; no live traffic information is available.",
+      "simulation_notice": "SIMULATED DISPATCH \u2014 NO REAL AMBULANCE HAS BEEN CONTACTED",
+      "ranking_formula": "adjusted_cost_sec = travel_time_sec * (1.0 + (suitability_penalty * 2.0))",
+      "ranking_priority": "source-reported emergency department (OSM emergency=yes) first; then facility category (trauma centre before hospital); then adjusted road travel time. This is a transparent heuristic, not verified medical suitability.",
+      "trajectory": [
+        {
+          "t_seconds": 0.0,
+          "lat": 31.230546,
+          "lon": 75.763136,
+          "leg": "leg1_ambulance_to_incident"
+        },
+        {
+          "t_seconds": 15.0,
+          "lat": 31.231394,
+          "lon": 75.763423,
+          "leg": "leg1_ambulance_to_incident"
+        },
+        {
+          "t_seconds": 30.0,
+          "lat": 31.23211,
+          "lon": 75.764631,
+          "leg": "leg1_ambulance_to_incident"
+        },
+        {
+          "t_seconds": 45.0,
+          "lat": 31.232074,
+          "lon": 75.765717,
+          "leg": "leg1_ambulance_to_incident"
+        },
+        {
+          "t_seconds": 60.0,
+          "lat": 31.231418,
+          "lon": 75.766985,
+          "leg": "leg1_ambulance_to_incident"
+        },
+        {
+          "t_seconds": 75.0,
+          "lat": 31.230762,
+          "lon": 75.768253,
+          "leg": "leg1_ambulance_to_incident"
+        },
+        {
+          "t_seconds": 90.0,
+          "lat": 31.230034,
+          "lon": 75.769466,
+          "leg": "leg1_ambulance_to_incident"
+        },
+        {
+          "t_seconds": 105.0,
+          "lat": 31.229557,
+          "lon": 75.770591,
+          "leg": "leg1_ambulance_to_incident"
+        },
+        {
+          "t_seconds": 120.0,
+          "lat": 31.23067,
+          "lon": 75.771296,
+          "leg": "leg1_ambulance_to_incident"
+        },
+        {
+          "t_seconds": 135.0,
+          "lat": 31.231848,
+          "lon": 75.771835,
+          "leg": "leg1_ambulance_to_incident"
+        },
+        {
+          "t_seconds": 150.0,
+          "lat": 31.233065,
+          "lon": 75.772246,
+          "leg": "leg1_ambulance_to_incident"
+        },
+        {
+          "t_seconds": 165.0,
+          "lat": 31.234282,
+          "lon": 75.772661,
+          "leg": "leg1_ambulance_to_incident"
+        },
+        {
+          "t_seconds": 180.0,
+          "lat": 31.235501,
+          "lon": 75.773069,
+          "leg": "leg1_ambulance_to_incident"
+        },
+        {
+          "t_seconds": 195.0,
+          "lat": 31.236722,
+          "lon": 75.773463,
+          "leg": "leg1_ambulance_to_incident"
+        },
+        {
+          "t_seconds": 210.0,
+          "lat": 31.237943,
+          "lon": 75.773862,
+          "leg": "leg1_ambulance_to_incident"
+        },
+        {
+          "t_seconds": 225.0,
+          "lat": 31.239176,
+          "lon": 75.774207,
+          "leg": "leg1_ambulance_to_incident"
+        },
+        {
+          "t_seconds": 240.0,
+          "lat": 31.240416,
+          "lon": 75.774501,
+          "leg": "leg1_ambulance_to_incident"
+        },
+        {
+          "t_seconds": 255.0,
+          "lat": 31.241676,
+          "lon": 75.774657,
+          "leg": "leg1_ambulance_to_incident"
+        },
+        {
+          "t_seconds": 270.0,
+          "lat": 31.242929,
+          "lon": 75.774868,
+          "leg": "leg1_ambulance_to_incident"
+        },
+        {
+          "t_seconds": 285.0,
+          "lat": 31.244188,
+          "lon": 75.775035,
+          "leg": "leg1_ambulance_to_incident"
+        },
+        {
+          "t_seconds": 300.0,
+          "lat": 31.245447,
+          "lon": 75.775201,
+          "leg": "leg1_ambulance_to_incident"
+        },
+        {
+          "t_seconds": 315.0,
+          "lat": 31.245482,
+          "lon": 75.776638,
+          "leg": "leg1_ambulance_to_incident"
+        },
+        {
+          "t_seconds": 330.0,
+          "lat": 31.245474,
+          "lon": 75.77812,
+          "leg": "leg1_ambulance_to_incident"
+        },
+        {
+          "t_seconds": 345.0,
+          "lat": 31.245465,
+          "lon": 75.779603,
+          "leg": "leg1_ambulance_to_incident"
+        },
+        {
+          "t_seconds": 360.0,
+          "lat": 31.245456,
+          "lon": 75.781085,
+          "leg": "leg1_ambulance_to_incident"
+        },
+        {
+          "t_seconds": 375.0,
+          "lat": 31.245447,
+          "lon": 75.782567,
+          "leg": "leg1_ambulance_to_incident"
+        },
+        {
+          "t_seconds": 382.2,
+          "lat": 31.245443,
+          "lon": 75.783279,
+          "leg": "leg1_ambulance_to_incident"
+        },
+        {
+          "t_seconds": 397.2,
+          "lat": 31.245452,
+          "lon": 75.781797,
+          "leg": "leg2_incident_to_hospital"
+        },
+        {
+          "t_seconds": 412.2,
+          "lat": 31.245461,
+          "lon": 75.780315,
+          "leg": "leg2_incident_to_hospital"
+        },
+        {
+          "t_seconds": 427.2,
+          "lat": 31.245469,
+          "lon": 75.778833,
+          "leg": "leg2_incident_to_hospital"
+        },
+        {
+          "t_seconds": 442.2,
+          "lat": 31.245478,
+          "lon": 75.777351,
+          "leg": "leg2_incident_to_hospital"
+        },
+        {
+          "t_seconds": 457.2,
+          "lat": 31.245487,
+          "lon": 75.775869,
+          "leg": "leg2_incident_to_hospital"
+        },
+        {
+          "t_seconds": 472.2,
+          "lat": 31.244795,
+          "lon": 75.775115,
+          "leg": "leg2_incident_to_hospital"
+        },
+        {
+          "t_seconds": 487.2,
+          "lat": 31.243536,
+          "lon": 75.774948,
+          "leg": "leg2_incident_to_hospital"
+        },
+        {
+          "t_seconds": 502.2,
+          "lat": 31.242278,
+          "lon": 75.774778,
+          "leg": "leg2_incident_to_hospital"
+        },
+        {
+          "t_seconds": 517.2,
+          "lat": 31.241024,
+          "lon": 75.774576,
+          "leg": "leg2_incident_to_hospital"
+        },
+        {
+          "t_seconds": 532.2,
+          "lat": 31.23977,
+          "lon": 75.774373,
+          "leg": "leg2_incident_to_hospital"
+        },
+        {
+          "t_seconds": 547.2,
+          "lat": 31.238538,
+          "lon": 75.774029,
+          "leg": "leg2_incident_to_hospital"
+        },
+        {
+          "t_seconds": 562.2,
+          "lat": 31.237312,
+          "lon": 75.773656,
+          "leg": "leg2_incident_to_hospital"
+        },
+        {
+          "t_seconds": 577.2,
+          "lat": 31.236091,
+          "lon": 75.773259,
+          "leg": "leg2_incident_to_hospital"
+        },
+        {
+          "t_seconds": 592.2,
+          "lat": 31.234871,
+          "lon": 75.772859,
+          "leg": "leg2_incident_to_hospital"
+        },
+        {
+          "t_seconds": 607.2,
+          "lat": 31.233654,
+          "lon": 75.772447,
+          "leg": "leg2_incident_to_hospital"
+        },
+        {
+          "t_seconds": 622.2,
+          "lat": 31.232438,
+          "lon": 75.772033,
+          "leg": "leg2_incident_to_hospital"
+        },
+        {
+          "t_seconds": 637.2,
+          "lat": 31.23123,
+          "lon": 75.771588,
+          "leg": "leg2_incident_to_hospital"
+        },
+        {
+          "t_seconds": 652.2,
+          "lat": 31.230084,
+          "lon": 75.770959,
+          "leg": "leg2_incident_to_hospital"
+        },
+        {
+          "t_seconds": 667.2,
+          "lat": 31.229667,
+          "lon": 75.770042,
+          "leg": "leg2_incident_to_hospital"
+        },
+        {
+          "t_seconds": 682.2,
+          "lat": 31.230423,
+          "lon": 75.768853,
+          "leg": "leg2_incident_to_hospital"
+        },
+        {
+          "t_seconds": 697.2,
+          "lat": 31.2311,
+          "lon": 75.767601,
+          "leg": "leg2_incident_to_hospital"
+        },
+        {
+          "t_seconds": 712.2,
+          "lat": 31.231755,
+          "lon": 75.766333,
+          "leg": "leg2_incident_to_hospital"
+        },
+        {
+          "t_seconds": 727.2,
+          "lat": 31.232353,
+          "lon": 75.765216,
+          "leg": "leg2_incident_to_hospital"
+        },
+        {
+          "t_seconds": 742.2,
+          "lat": 31.231786,
+          "lon": 75.76397,
+          "leg": "leg2_incident_to_hospital"
+        },
+        {
+          "t_seconds": 757.2,
+          "lat": 31.230956,
+          "lon": 75.762862,
+          "leg": "leg2_incident_to_hospital"
+        },
+        {
+          "t_seconds": 764.5,
+          "lat": 31.230546,
+          "lon": 75.763136,
+          "leg": "leg2_incident_to_hospital"
+        }
+      ],
+      "ambulance_alternatives": [
+        {
+          "id": "amb-phagwara-01",
+          "callsign": "AMB-ALPHA-01",
+          "base_name": "Civil Hospital Phagwara",
+          "base_lat": 31.230527,
+          "base_lon": 75.762824,
+          "equipment_level": null,
+          "eta_seconds": 382.2,
+          "driving_distance_km": 3.6,
+          "selection_reason": "Chosen: lowest recorded simulated road-network ETA (382.2 s) among 6 simulated units (derived from stored ETAs).",
+          "chosen": true
+        },
+        {
+          "id": "amb-phagwara-04",
+          "callsign": "AMB-DELTA-04",
+          "base_name": "Gee Bee Hospital and Maternity Home",
+          "base_lat": 31.219951,
+          "base_lon": 75.778225,
+          "equipment_level": null,
+          "eta_seconds": 483.5,
+          "driving_distance_km": 3.6,
+          "selection_reason": "Not chosen: recorded simulated road-network ETA (483.5 s) is longer than the selected unit (382.2 s) (derived from stored ETAs).",
+          "chosen": false
+        },
+        {
+          "id": "amb-phagwara-05",
+          "callsign": "AMB-ECHO-05",
+          "base_name": "Sharma Children Hospital",
+          "base_lat": 31.218129,
+          "base_lon": 75.775487,
+          "equipment_level": null,
+          "eta_seconds": 539.9,
+          "driving_distance_km": 4.01,
+          "selection_reason": "Not chosen: recorded simulated road-network ETA (539.9 s) is longer than the selected unit (382.2 s) (derived from stored ETAs).",
+          "chosen": false
+        },
+        {
+          "id": "amb-phagwara-02",
+          "callsign": "AMB-BRAVO-02",
+          "base_name": "Gandhi Hospital (P) Ltd",
+          "base_lat": 31.216584,
+          "base_lon": 75.776725,
+          "equipment_level": null,
+          "eta_seconds": 573.4,
+          "driving_distance_km": 4.24,
+          "selection_reason": "Not chosen: recorded simulated road-network ETA (573.4 s) is longer than the selected unit (382.2 s) (derived from stored ETAs).",
+          "chosen": false
+        },
+        {
+          "id": "amb-phagwara-06",
+          "callsign": "AMB-FOXTROT-06",
+          "base_name": "Anoop Hospital And Heart Care Centre",
+          "base_lat": 31.215215,
+          "base_lon": 75.777335,
+          "equipment_level": null,
+          "eta_seconds": 578.1,
+          "driving_distance_km": 4.36,
+          "selection_reason": "Not chosen: recorded simulated road-network ETA (578.1 s) is longer than the selected unit (382.2 s) (derived from stored ETAs).",
+          "chosen": false
+        },
+        {
+          "id": "amb-phagwara-03",
+          "callsign": "AMB-CHARLIE-03",
+          "base_name": "Parhar Hospital",
+          "base_lat": 31.214717,
+          "base_lon": 75.775752,
+          "equipment_level": null,
+          "eta_seconds": 595.4,
+          "driving_distance_km": 4.4,
+          "selection_reason": "Not chosen: recorded simulated road-network ETA (595.4 s) is longer than the selected unit (382.2 s) (derived from stored ETAs).",
+          "chosen": false
+        }
+      ],
+      "hospital_alternatives": [
+        {
+          "osm_id": "osm-node-7150766771",
+          "name": "Civil Hospital Phagwara",
+          "driving_km": 3.6,
+          "transit_seconds": 382.3,
+          "penalty": 0.0,
+          "adjusted_cost_seconds": 382.3,
+          "considered": true,
+          "note": "Chosen: lowest adjusted travel time (382.3s) among dispatch-eligible corridor facilities; emergency capability unverified",
+          "emergency_capability": "Emergency department and specialties not specified in OpenStreetMap; capability unverified",
+          "facility_category": null,
+          "emergency_status": null,
+          "recommended_for_emergency": null,
+          "suitability_rule": null
+        },
+        {
+          "osm_id": "osm-node-7105996895",
+          "name": "Parhar Hospital",
+          "driving_km": 4.93,
+          "transit_seconds": 475.3,
+          "penalty": 0.0,
+          "adjusted_cost_seconds": 475.3,
+          "considered": true,
+          "note": "Not chosen: driving time (475.3s) is longer than chosen hospital (382.3s)",
+          "emergency_capability": "Emergency department and specialties not specified in OpenStreetMap; capability unverified",
+          "facility_category": null,
+          "emergency_status": null,
+          "recommended_for_emergency": null,
+          "suitability_rule": null
+        },
+        {
+          "osm_id": "osm-node-7058964861",
+          "name": "Gandhi Hospital (P) Ltd",
+          "driving_km": 4.83,
+          "transit_seconds": 505.5,
+          "penalty": 0.0,
+          "adjusted_cost_seconds": 505.5,
+          "considered": true,
+          "note": "Not chosen: driving time (505.5s) is longer than chosen hospital (382.3s)",
+          "emergency_capability": "Emergency department and specialties not specified in OpenStreetMap; capability unverified",
+          "facility_category": null,
+          "emergency_status": null,
+          "recommended_for_emergency": null,
+          "suitability_rule": null
+        },
+        {
+          "osm_id": "osm-node-7065234238",
+          "name": "Gee Bee Hospital and Maternity Home",
+          "driving_km": 4.67,
+          "transit_seconds": 467.1,
+          "penalty": 0.3,
+          "adjusted_cost_seconds": 747.4,
+          "considered": true,
+          "note": "Not chosen: down-ranked by suitability rule (Down-ranked by suitability rule: facility specialized in maternity, but incident has no reported maternity requirement.)",
+          "emergency_capability": "Emergency department and specialties not specified in OpenStreetMap; capability unverified",
+          "facility_category": null,
+          "emergency_status": null,
+          "recommended_for_emergency": null,
+          "suitability_rule": "Down-ranked by suitability rule: facility specialized in maternity, but incident has no reported maternity requirement."
+        },
+        {
+          "osm_id": "osm-node-7059030148",
+          "name": "Sharma Children Hospital",
+          "driving_km": 4.6,
+          "transit_seconds": 472.0,
+          "penalty": 0.3,
+          "adjusted_cost_seconds": 755.3,
+          "considered": true,
+          "note": "Not chosen: down-ranked by suitability rule (Down-ranked by suitability rule: facility specialized in children, but incident has no reported children requirement.)",
+          "emergency_capability": "Emergency department and specialties not specified in OpenStreetMap; capability unverified",
+          "facility_category": null,
+          "emergency_status": null,
+          "recommended_for_emergency": null,
+          "suitability_rule": "Down-ranked by suitability rule: facility specialized in children, but incident has no reported children requirement."
+        },
+        {
+          "osm_id": "osm-node-7104017976",
+          "name": "Virk Hospital And Maternity Home",
+          "driving_km": 5.03,
+          "transit_seconds": 486.5,
+          "penalty": 0.3,
+          "adjusted_cost_seconds": 778.4,
+          "considered": true,
+          "note": "Not chosen: down-ranked by suitability rule (Down-ranked by suitability rule: facility specialized in maternity, but incident has no reported maternity requirement.)",
+          "emergency_capability": "Emergency department and specialties not specified in OpenStreetMap; capability unverified",
+          "facility_category": null,
+          "emergency_status": null,
+          "recommended_for_emergency": null,
+          "suitability_rule": "Down-ranked by suitability rule: facility specialized in maternity, but incident has no reported maternity requirement."
+        },
+        {
+          "osm_id": "osm-node-7053504658",
+          "name": "Anoop Hospital And Heart Care Centre",
+          "driving_km": 5.11,
+          "transit_seconds": 497.1,
+          "penalty": 0.3,
+          "adjusted_cost_seconds": 795.4,
+          "considered": true,
+          "note": "Not chosen: down-ranked by suitability rule (Down-ranked by suitability rule: facility specialized in heart/cardiac, but incident has no reported heart/cardiac requirement.)",
+          "emergency_capability": "Emergency department and specialties not specified in OpenStreetMap; capability unverified",
+          "facility_category": null,
+          "emergency_status": null,
+          "recommended_for_emergency": null,
+          "suitability_rule": "Down-ranked by suitability rule: facility specialized in heart/cardiac, but incident has no reported heart/cardiac requirement."
+        },
+        {
+          "osm_id": "osm-node-7062747354",
+          "name": "Mitra Eye Hospital",
+          "driving_km": 4.84,
+          "transit_seconds": 497.8,
+          "penalty": 0.3,
+          "adjusted_cost_seconds": 796.5,
+          "considered": true,
+          "note": "Not chosen: down-ranked by suitability rule (Down-ranked by suitability rule: facility specialized in eye, but incident has no reported eye requirement.)",
+          "emergency_capability": "Emergency department and specialties not specified in OpenStreetMap; capability unverified",
+          "facility_category": null,
+          "emergency_status": null,
+          "recommended_for_emergency": null,
+          "suitability_rule": "Down-ranked by suitability rule: facility specialized in eye, but incident has no reported eye requirement."
+        }
+      ],
+      "map_png": "data/outputs/routes/loc-phagwara-hoshiarpur-road_route.png",
+      "geojson": "data/outputs/routes/loc-phagwara-hoshiarpur-road_route.geojson"
+    },
+    {
+      "location_id": "loc-phagwara-lpu-chaheru",
+      "location_name": "GT Road near Lovely Professional University (Chaheru)",
+      "incident": {
+        "lat": 31.2532,
+        "lon": 75.7035,
+        "data_source": "SIMULATED"
+      },
+      "severity": "not determined (demo placement)",
+      "ambulance": {
+        "id": "amb-phagwara-01",
+        "callsign": "AMB-ALPHA-01",
+        "base_name": "Civil Hospital Phagwara",
+        "base_lat": 31.230527,
+        "base_lon": 75.762824,
+        "equipment_level": "Critical Care",
+        "eta_seconds": 696.5,
+        "driving_distance_km": 8.43,
+        "selection_reason": "Chosen: lowest recorded simulated road-network ETA (696.5 s) among 6 simulated units (derived from stored ETAs).",
+        "selection_criteria": "Lowest simulated road-network travel time from A* over the cached OSM graph; ties broken by shorter straight-line distance. No live GPS, vehicle location, operational status or real ambulance contact is used.",
+        "data_source": "SIMULATED"
+      },
+      "hospital": {
+        "osm_id": "osm-node-7150766771",
+        "name": "Civil Hospital Phagwara",
+        "lat": 31.230527,
+        "lon": 75.762824,
+        "phone": "1824229369",
+        "emergency_tag": null,
+        "specialties": null,
+        "emergency_capability": "Emergency department and specialties not specified in OpenStreetMap; capability unverified",
+        "data_source": "REAL",
+        "straight_line_km": 6.18,
+        "driving_km": 8.45,
+        "transit_seconds": 698.4
+      },
+      "leg_to_incident": [
+        [
+          31.230546,
+          75.763136
+        ],
+        [
+          31.23087,
+          75.76273
+        ],
+        [
+          31.230284,
+          75.761983
+        ],
+        [
+          31.229823,
+          75.761401
+        ],
+        [
+          31.22956,
+          75.761074
+        ],
+        [
+          31.232515,
+          75.758082
+        ],
+        [
+          31.236805,
+          75.753274
+        ],
+        [
+          31.237879,
+          75.751961
+        ],
+        [
+          31.238192,
+          75.751578
+        ],
+        [
+          31.23906,
+          75.75042
+        ],
+        [
+          31.242099,
+          75.746432
+        ],
+        [
+          31.245118,
+          75.741301
+        ],
+        [
+          31.245213,
+          75.741113
+        ],
+        [
+          31.24619,
+          75.737776
+        ],
+        [
+          31.246351,
+          75.737154
+        ],
+        [
+          31.246656,
+          75.736118
+        ],
+        [
+          31.246832,
+          75.735431
+        ],
+        [
+          31.247398,
+          75.733214
+        ],
+        [
+          31.247413,
+          75.733152
+        ],
+        [
+          31.257466,
+          75.717925
+        ],
+        [
+          31.259099,
+          75.715302
+        ],
+        [
+          31.260045,
+          75.70837
+        ],
+        [
+          31.260734,
+          75.707269
+        ],
+        [
+          31.26225,
+          75.704394
+        ],
+        [
+          31.262452,
+          75.704013
+        ],
+        [
+          31.262105,
+          75.70384
+        ],
+        [
+          31.261736,
+          75.703657
+        ],
+        [
+          31.261393,
+          75.703486
+        ],
+        [
+          31.260512,
+          75.703023
+        ],
+        [
+          31.259619,
+          75.70259
+        ],
+        [
+          31.258634,
+          75.702107
+        ],
+        [
+          31.257764,
+          75.701656
+        ],
+        [
+          31.257016,
+          75.701264
+        ],
+        [
+          31.255468,
+          75.700471
+        ],
+        [
+          31.255137,
+          75.700275
+        ],
+        [
+          31.254933,
+          75.700155
+        ],
+        [
+          31.25492,
+          75.700643
+        ],
+        [
+          31.254382,
+          75.700862
+        ],
+        [
+          31.254367,
+          75.701509
+        ],
+        [
+          31.252993,
+          75.702015
+        ],
+        [
+          31.252992,
+          75.702148
+        ],
+        [
+          31.252942,
+          75.702272
+        ],
+        [
+          31.252935,
+          75.702705
+        ],
+        [
+          31.252931,
+          75.703126
+        ],
+        [
+          31.252931,
+          75.703537
+        ]
+      ],
+      "leg_to_hospital": [
+        [
+          31.252931,
+          75.703537
+        ],
+        [
+          31.252931,
+          75.703126
+        ],
+        [
+          31.252935,
+          75.702705
+        ],
+        [
+          31.252942,
+          75.702272
+        ],
+        [
+          31.252992,
+          75.702148
+        ],
+        [
+          31.252993,
+          75.702015
+        ],
+        [
+          31.254367,
+          75.701509
+        ],
+        [
+          31.254382,
+          75.700862
+        ],
+        [
+          31.25492,
+          75.700643
+        ],
+        [
+          31.254933,
+          75.700155
+        ],
+        [
+          31.255137,
+          75.700275
+        ],
+        [
+          31.255468,
+          75.700471
+        ],
+        [
+          31.257016,
+          75.701264
+        ],
+        [
+          31.257764,
+          75.701656
+        ],
+        [
+          31.258634,
+          75.702107
+        ],
+        [
+          31.259619,
+          75.70259
+        ],
+        [
+          31.260512,
+          75.703023
+        ],
+        [
+          31.261393,
+          75.703486
+        ],
+        [
+          31.261736,
+          75.703657
+        ],
+        [
+          31.262105,
+          75.70384
+        ],
+        [
+          31.262452,
+          75.704013
+        ],
+        [
+          31.262821,
+          75.704221
+        ],
+        [
+          31.260549,
+          75.707865
+        ],
+        [
+          31.258758,
+          75.716198
+        ],
+        [
+          31.256844,
+          75.719051
+        ],
+        [
+          31.249651,
+          75.728729
+        ],
+        [
+          31.247539,
+          75.733169
+        ],
+        [
+          31.247519,
+          75.733275
+        ],
+        [
+          31.24519,
+          75.741777
+        ],
+        [
+          31.244979,
+          75.742365
+        ],
+        [
+          31.243403,
+          75.745374
+        ],
+        [
+          31.24319,
+          75.74565
+        ],
+        [
+          31.242366,
+          75.746752
+        ],
+        [
+          31.237861,
+          75.752608
+        ],
+        [
+          31.237188,
+          75.7534
+        ],
+        [
+          31.23634,
+          75.7544
+        ],
+        [
+          31.234274,
+          75.756832
+        ],
+        [
+          31.23386,
+          75.75731
+        ],
+        [
+          31.232994,
+          75.758194
+        ],
+        [
+          31.231625,
+          75.75945
+        ],
+        [
+          31.231207,
+          75.759861
+        ],
+        [
+          31.229823,
+          75.761401
+        ],
+        [
+          31.230284,
+          75.761983
+        ],
+        [
+          31.23087,
+          75.76273
+        ],
+        [
+          31.230546,
+          75.763136
+        ]
+      ],
+      "route_verification": {
+        "leg1_start": [
+          31.230546,
+          75.763136
+        ],
+        "leg1_end": [
+          31.252931,
+          75.703537
+        ],
+        "leg2_start": [
+          31.252931,
+          75.703537
+        ],
+        "leg2_end": [
+          31.230546,
+          75.763136
+        ],
+        "legs_join_at_incident": true,
+        "repeated_segments_leg1": 0,
+        "repeated_segments_leg2": 0,
+        "shared_segments_between_legs": 0,
+        "leg1_polyline_km": 8.34,
+        "leg2_polyline_km": 8.36,
+        "leg1_points": 45,
+        "leg2_points": 45
+      },
+      "location_context": {
+        "dispatch_lat": 31.2532,
+        "dispatch_lon": 75.7035,
+        "used_for": "Both A* route legs, leg distances, leg travel times and totals in Tab 6",
+        "caller_reported": null,
+        "caller_used_for": "Nothing in Tab 6; caller location is preserved separately from Tab 4",
+        "hospital_search": null,
+        "hospital_search_used_for": "Tab 5 straight-line lookup only; never substituted in Tab 6",
+        "gps_status": "NOT AVAILABLE \u2014 no device GPS verification was performed"
+      },
+      "total_km": 16.88,
+      "total_seconds": 1394.9,
+      "traffic_note": "Estimated from OSM speed data; no live traffic information is available.",
+      "simulation_notice": "SIMULATED DISPATCH \u2014 NO REAL AMBULANCE HAS BEEN CONTACTED",
+      "ranking_formula": "adjusted_cost_sec = travel_time_sec * (1.0 + (suitability_penalty * 2.0))",
+      "ranking_priority": "source-reported emergency department (OSM emergency=yes) first; then facility category (trauma centre before hospital); then adjusted road travel time. This is a transparent heuristic, not verified medical suitability.",
+      "trajectory": [
+        {
+          "t_seconds": 0.0,
+          "lat": 31.230546,
+          "lon": 75.763136,
+          "leg": "leg1_ambulance_to_incident"
+        },
+        {
+          "t_seconds": 15.0,
+          "lat": 31.230098,
+          "lon": 75.761749,
+          "leg": "leg1_ambulance_to_incident"
+        },
+        {
+          "t_seconds": 30.0,
+          "lat": 31.230184,
+          "lon": 75.760442,
+          "leg": "leg1_ambulance_to_incident"
+        },
+        {
+          "t_seconds": 45.0,
+          "lat": 31.231405,
+          "lon": 75.759206,
+          "leg": "leg1_ambulance_to_incident"
+        },
+        {
+          "t_seconds": 60.0,
+          "lat": 31.232621,
+          "lon": 75.757964,
+          "leg": "leg1_ambulance_to_incident"
+        },
+        {
+          "t_seconds": 75.0,
+          "lat": 31.233786,
+          "lon": 75.756657,
+          "leg": "leg1_ambulance_to_incident"
+        },
+        {
+          "t_seconds": 90.0,
+          "lat": 31.234952,
+          "lon": 75.755351,
+          "leg": "leg1_ambulance_to_incident"
+        },
+        {
+          "t_seconds": 105.0,
+          "lat": 31.236118,
+          "lon": 75.754044,
+          "leg": "leg1_ambulance_to_incident"
+        },
+        {
+          "t_seconds": 120.0,
+          "lat": 31.237263,
+          "lon": 75.752714,
+          "leg": "leg1_ambulance_to_incident"
+        },
+        {
+          "t_seconds": 135.0,
+          "lat": 31.238371,
+          "lon": 75.751339,
+          "leg": "leg1_ambulance_to_incident"
+        },
+        {
+          "t_seconds": 150.0,
+          "lat": 31.239439,
+          "lon": 75.749923,
+          "leg": "leg1_ambulance_to_incident"
+        },
+        {
+          "t_seconds": 165.0,
+          "lat": 31.240513,
+          "lon": 75.748513,
+          "leg": "leg1_ambulance_to_incident"
+        },
+        {
+          "t_seconds": 180.0,
+          "lat": 31.241587,
+          "lon": 75.747103,
+          "leg": "leg1_ambulance_to_incident"
+        },
+        {
+          "t_seconds": 195.0,
+          "lat": 31.242579,
+          "lon": 75.745617,
+          "leg": "leg1_ambulance_to_incident"
+        },
+        {
+          "t_seconds": 210.0,
+          "lat": 31.243494,
+          "lon": 75.744061,
+          "leg": "leg1_ambulance_to_incident"
+        },
+        {
+          "t_seconds": 225.0,
+          "lat": 31.244409,
+          "lon": 75.742505,
+          "leg": "leg1_ambulance_to_incident"
+        },
+        {
+          "t_seconds": 240.0,
+          "lat": 31.245271,
+          "lon": 75.740916,
+          "leg": "leg1_ambulance_to_incident"
+        },
+        {
+          "t_seconds": 255.0,
+          "lat": 31.245794,
+          "lon": 75.739129,
+          "leg": "leg1_ambulance_to_incident"
+        },
+        {
+          "t_seconds": 270.0,
+          "lat": 31.246303,
+          "lon": 75.737338,
+          "leg": "leg1_ambulance_to_incident"
+        },
+        {
+          "t_seconds": 285.0,
+          "lat": 31.246804,
+          "lon": 75.735542,
+          "leg": "leg1_ambulance_to_incident"
+        },
+        {
+          "t_seconds": 300.0,
+          "lat": 31.247266,
+          "lon": 75.733732,
+          "leg": "leg1_ambulance_to_incident"
+        },
+        {
+          "t_seconds": 315.0,
+          "lat": 31.248084,
+          "lon": 75.732136,
+          "leg": "leg1_ambulance_to_incident"
+        },
+        {
+          "t_seconds": 330.0,
+          "lat": 31.24907,
+          "lon": 75.730641,
+          "leg": "leg1_ambulance_to_incident"
+        },
+        {
+          "t_seconds": 345.0,
+          "lat": 31.250057,
+          "lon": 75.729147,
+          "leg": "leg1_ambulance_to_incident"
+        },
+        {
+          "t_seconds": 360.0,
+          "lat": 31.251044,
+          "lon": 75.727652,
+          "leg": "leg1_ambulance_to_incident"
+        },
+        {
+          "t_seconds": 375.0,
+          "lat": 31.252031,
+          "lon": 75.726157,
+          "leg": "leg1_ambulance_to_incident"
+        },
+        {
+          "t_seconds": 390.0,
+          "lat": 31.253018,
+          "lon": 75.724662,
+          "leg": "leg1_ambulance_to_incident"
+        },
+        {
+          "t_seconds": 405.0,
+          "lat": 31.254005,
+          "lon": 75.723167,
+          "leg": "leg1_ambulance_to_incident"
+        },
+        {
+          "t_seconds": 420.0,
+          "lat": 31.254992,
+          "lon": 75.721672,
+          "leg": "leg1_ambulance_to_incident"
+        },
+        {
+          "t_seconds": 435.0,
+          "lat": 31.255979,
+          "lon": 75.720177,
+          "leg": "leg1_ambulance_to_incident"
+        },
+        {
+          "t_seconds": 450.0,
+          "lat": 31.256966,
+          "lon": 75.718682,
+          "leg": "leg1_ambulance_to_incident"
+        },
+        {
+          "t_seconds": 465.0,
+          "lat": 31.257935,
+          "lon": 75.717172,
+          "leg": "leg1_ambulance_to_incident"
+        },
+        {
+          "t_seconds": 480.0,
+          "lat": 31.258886,
+          "lon": 75.715645,
+          "leg": "leg1_ambulance_to_incident"
+        },
+        {
+          "t_seconds": 495.0,
+          "lat": 31.259296,
+          "lon": 75.713855,
+          "leg": "leg1_ambulance_to_incident"
+        },
+        {
+          "t_seconds": 510.0,
+          "lat": 31.259551,
+          "lon": 75.71199,
+          "leg": "leg1_ambulance_to_incident"
+        },
+        {
+          "t_seconds": 525.0,
+          "lat": 31.259806,
+          "lon": 75.710125,
+          "leg": "leg1_ambulance_to_incident"
+        },
+        {
+          "t_seconds": 540.0,
+          "lat": 31.260101,
+          "lon": 75.70828,
+          "leg": "leg1_ambulance_to_incident"
+        },
+        {
+          "t_seconds": 555.0,
+          "lat": 31.26102,
+          "lon": 75.706727,
+          "leg": "leg1_ambulance_to_incident"
+        },
+        {
+          "t_seconds": 570.0,
+          "lat": 31.261867,
+          "lon": 75.70512,
+          "leg": "leg1_ambulance_to_incident"
+        },
+        {
+          "t_seconds": 585.0,
+          "lat": 31.26199,
+          "lon": 75.703783,
+          "leg": "leg1_ambulance_to_incident"
+        },
+        {
+          "t_seconds": 600.0,
+          "lat": 31.260511,
+          "lon": 75.703023,
+          "leg": "leg1_ambulance_to_incident"
+        },
+        {
+          "t_seconds": 615.0,
+          "lat": 31.259021,
+          "lon": 75.702297,
+          "leg": "leg1_ambulance_to_incident"
+        },
+        {
+          "t_seconds": 630.0,
+          "lat": 31.257542,
+          "lon": 75.701539,
+          "leg": "leg1_ambulance_to_incident"
+        },
+        {
+          "t_seconds": 645.0,
+          "lat": 31.256065,
+          "lon": 75.700777,
+          "leg": "leg1_ambulance_to_incident"
+        },
+        {
+          "t_seconds": 660.0,
+          "lat": 31.254922,
+          "lon": 75.700581,
+          "leg": "leg1_ambulance_to_incident"
+        },
+        {
+          "t_seconds": 675.0,
+          "lat": 31.253949,
+          "lon": 75.701663,
+          "leg": "leg1_ambulance_to_incident"
+        },
+        {
+          "t_seconds": 690.0,
+          "lat": 31.252935,
+          "lon": 75.702719,
+          "leg": "leg1_ambulance_to_incident"
+        },
+        {
+          "t_seconds": 696.5,
+          "lat": 31.252931,
+          "lon": 75.703537,
+          "leg": "leg1_ambulance_to_incident"
+        },
+        {
+          "t_seconds": 711.5,
+          "lat": 31.253281,
+          "lon": 75.701909,
+          "leg": "leg2_incident_to_hospital"
+        },
+        {
+          "t_seconds": 726.5,
+          "lat": 31.25438,
+          "lon": 75.700953,
+          "leg": "leg2_incident_to_hospital"
+        },
+        {
+          "t_seconds": 741.5,
+          "lat": 31.255423,
+          "lon": 75.700444,
+          "leg": "leg2_incident_to_hospital"
+        },
+        {
+          "t_seconds": 756.5,
+          "lat": 31.256901,
+          "lon": 75.701205,
+          "leg": "leg2_incident_to_hospital"
+        },
+        {
+          "t_seconds": 771.5,
+          "lat": 31.258375,
+          "lon": 75.701973,
+          "leg": "leg2_incident_to_hospital"
+        },
+        {
+          "t_seconds": 786.5,
+          "lat": 31.259862,
+          "lon": 75.702708,
+          "leg": "leg2_incident_to_hospital"
+        },
+        {
+          "t_seconds": 801.5,
+          "lat": 31.261342,
+          "lon": 75.703459,
+          "leg": "leg2_incident_to_hospital"
+        },
+        {
+          "t_seconds": 816.5,
+          "lat": 31.262819,
+          "lon": 75.70422,
+          "leg": "leg2_incident_to_hospital"
+        },
+        {
+          "t_seconds": 831.5,
+          "lat": 31.261871,
+          "lon": 75.705745,
+          "leg": "leg2_incident_to_hospital"
+        },
+        {
+          "t_seconds": 846.5,
+          "lat": 31.26092,
+          "lon": 75.70727,
+          "leg": "leg2_incident_to_hospital"
+        },
+        {
+          "t_seconds": 861.5,
+          "lat": 31.260309,
+          "lon": 75.708983,
+          "leg": "leg2_incident_to_hospital"
+        },
+        {
+          "t_seconds": 876.5,
+          "lat": 31.259915,
+          "lon": 75.710814,
+          "leg": "leg2_incident_to_hospital"
+        },
+        {
+          "t_seconds": 891.5,
+          "lat": 31.259522,
+          "lon": 75.712645,
+          "leg": "leg2_incident_to_hospital"
+        },
+        {
+          "t_seconds": 906.5,
+          "lat": 31.259128,
+          "lon": 75.714476,
+          "leg": "leg2_incident_to_hospital"
+        },
+        {
+          "t_seconds": 921.5,
+          "lat": 31.258698,
+          "lon": 75.716287,
+          "leg": "leg2_incident_to_hospital"
+        },
+        {
+          "t_seconds": 936.5,
+          "lat": 31.257702,
+          "lon": 75.717772,
+          "leg": "leg2_incident_to_hospital"
+        },
+        {
+          "t_seconds": 951.5,
+          "lat": 31.256697,
+          "lon": 75.719249,
+          "leg": "leg2_incident_to_hospital"
+        },
+        {
+          "t_seconds": 966.5,
+          "lat": 31.255638,
+          "lon": 75.720674,
+          "leg": "leg2_incident_to_hospital"
+        },
+        {
+          "t_seconds": 981.5,
+          "lat": 31.254579,
+          "lon": 75.722099,
+          "leg": "leg2_incident_to_hospital"
+        },
+        {
+          "t_seconds": 996.5,
+          "lat": 31.25352,
+          "lon": 75.723524,
+          "leg": "leg2_incident_to_hospital"
+        },
+        {
+          "t_seconds": 1011.5,
+          "lat": 31.252461,
+          "lon": 75.724949,
+          "leg": "leg2_incident_to_hospital"
+        },
+        {
+          "t_seconds": 1026.5,
+          "lat": 31.251402,
+          "lon": 75.726374,
+          "leg": "leg2_incident_to_hospital"
+        },
+        {
+          "t_seconds": 1041.5,
+          "lat": 31.250343,
+          "lon": 75.727799,
+          "leg": "leg2_incident_to_hospital"
+        },
+        {
+          "t_seconds": 1056.5,
+          "lat": 31.249379,
+          "lon": 75.729302,
+          "leg": "leg2_incident_to_hospital"
+        },
+        {
+          "t_seconds": 1071.5,
+          "lat": 31.248594,
+          "lon": 75.730951,
+          "leg": "leg2_incident_to_hospital"
+        },
+        {
+          "t_seconds": 1086.5,
+          "lat": 31.247809,
+          "lon": 75.732601,
+          "leg": "leg2_incident_to_hospital"
+        },
+        {
+          "t_seconds": 1101.5,
+          "lat": 31.247224,
+          "lon": 75.734351,
+          "leg": "leg2_incident_to_hospital"
+        },
+        {
+          "t_seconds": 1116.5,
+          "lat": 31.246732,
+          "lon": 75.736149,
+          "leg": "leg2_incident_to_hospital"
+        },
+        {
+          "t_seconds": 1131.5,
+          "lat": 31.246239,
+          "lon": 75.737947,
+          "leg": "leg2_incident_to_hospital"
+        },
+        {
+          "t_seconds": 1146.5,
+          "lat": 31.245747,
+          "lon": 75.739745,
+          "leg": "leg2_incident_to_hospital"
+        },
+        {
+          "t_seconds": 1161.5,
+          "lat": 31.245254,
+          "lon": 75.741543,
+          "leg": "leg2_incident_to_hospital"
+        },
+        {
+          "t_seconds": 1176.5,
+          "lat": 31.244531,
+          "lon": 75.743221,
+          "leg": "leg2_incident_to_hospital"
+        },
+        {
+          "t_seconds": 1191.5,
+          "lat": 31.243687,
+          "lon": 75.744831,
+          "leg": "leg2_incident_to_hospital"
+        },
+        {
+          "t_seconds": 1206.5,
+          "lat": 31.242695,
+          "lon": 75.746312,
+          "leg": "leg2_incident_to_hospital"
+        },
+        {
+          "t_seconds": 1221.5,
+          "lat": 31.241621,
+          "lon": 75.747721,
+          "leg": "leg2_incident_to_hospital"
+        },
+        {
+          "t_seconds": 1236.5,
+          "lat": 31.240541,
+          "lon": 75.749124,
+          "leg": "leg2_incident_to_hospital"
+        },
+        {
+          "t_seconds": 1251.5,
+          "lat": 31.239461,
+          "lon": 75.750528,
+          "leg": "leg2_incident_to_hospital"
+        },
+        {
+          "t_seconds": 1266.5,
+          "lat": 31.238382,
+          "lon": 75.751931,
+          "leg": "leg2_incident_to_hospital"
+        },
+        {
+          "t_seconds": 1281.5,
+          "lat": 31.237272,
+          "lon": 75.753301,
+          "leg": "leg2_incident_to_hospital"
+        },
+        {
+          "t_seconds": 1296.5,
+          "lat": 31.236135,
+          "lon": 75.754641,
+          "leg": "leg2_incident_to_hospital"
+        },
+        {
+          "t_seconds": 1311.5,
+          "lat": 31.234998,
+          "lon": 75.75598,
+          "leg": "leg2_incident_to_hospital"
+        },
+        {
+          "t_seconds": 1326.5,
+          "lat": 31.233856,
+          "lon": 75.757314,
+          "leg": "leg2_incident_to_hospital"
+        },
+        {
+          "t_seconds": 1341.5,
+          "lat": 31.232624,
+          "lon": 75.758533,
+          "leg": "leg2_incident_to_hospital"
+        },
+        {
+          "t_seconds": 1356.5,
+          "lat": 31.231361,
+          "lon": 75.759709,
+          "leg": "leg2_incident_to_hospital"
+        },
+        {
+          "t_seconds": 1371.5,
+          "lat": 31.230184,
+          "lon": 75.761,
+          "leg": "leg2_incident_to_hospital"
+        },
+        {
+          "t_seconds": 1386.5,
+          "lat": 31.23058,
+          "lon": 75.76236,
+          "leg": "leg2_incident_to_hospital"
+        },
+        {
+          "t_seconds": 1394.9,
+          "lat": 31.230546,
+          "lon": 75.763136,
+          "leg": "leg2_incident_to_hospital"
+        }
+      ],
+      "ambulance_alternatives": [
+        {
+          "id": "amb-phagwara-01",
+          "callsign": "AMB-ALPHA-01",
+          "base_name": "Civil Hospital Phagwara",
+          "base_lat": 31.230527,
+          "base_lon": 75.762824,
+          "equipment_level": null,
+          "eta_seconds": 696.5,
+          "driving_distance_km": 8.43,
+          "selection_reason": "Chosen: lowest recorded simulated road-network ETA (696.5 s) among 6 simulated units (derived from stored ETAs).",
+          "chosen": true
+        },
+        {
+          "id": "amb-phagwara-03",
+          "callsign": "AMB-CHARLIE-03",
+          "base_name": "Parhar Hospital",
+          "base_lat": 31.214717,
+          "base_lon": 75.775752,
+          "equipment_level": null,
+          "eta_seconds": 770.6,
+          "driving_distance_km": 10.58,
+          "selection_reason": "Not chosen: recorded simulated road-network ETA (770.6 s) is longer than the selected unit (696.5 s) (derived from stored ETAs).",
+          "chosen": false
+        },
+        {
+          "id": "amb-phagwara-04",
+          "callsign": "AMB-DELTA-04",
+          "base_name": "Gee Bee Hospital and Maternity Home",
+          "base_lat": 31.219951,
+          "base_lon": 75.778225,
+          "equipment_level": null,
+          "eta_seconds": 786.0,
+          "driving_distance_km": 10.91,
+          "selection_reason": "Not chosen: recorded simulated road-network ETA (786.0 s) is longer than the selected unit (696.5 s) (derived from stored ETAs).",
+          "chosen": false
+        },
+        {
+          "id": "amb-phagwara-05",
+          "callsign": "AMB-ECHO-05",
+          "base_name": "Sharma Children Hospital",
+          "base_lat": 31.218129,
+          "base_lon": 75.775487,
+          "equipment_level": null,
+          "eta_seconds": 790.9,
+          "driving_distance_km": 10.84,
+          "selection_reason": "Not chosen: recorded simulated road-network ETA (790.9 s) is longer than the selected unit (696.5 s) (derived from stored ETAs).",
+          "chosen": false
+        },
+        {
+          "id": "amb-phagwara-06",
+          "callsign": "AMB-FOXTROT-06",
+          "base_name": "Anoop Hospital And Heart Care Centre",
+          "base_lat": 31.215215,
+          "base_lon": 75.777335,
+          "equipment_level": null,
+          "eta_seconds": 792.4,
+          "driving_distance_km": 10.76,
+          "selection_reason": "Not chosen: recorded simulated road-network ETA (792.4 s) is longer than the selected unit (696.5 s) (derived from stored ETAs).",
+          "chosen": false
+        },
+        {
+          "id": "amb-phagwara-02",
+          "callsign": "AMB-BRAVO-02",
+          "base_name": "Gandhi Hospital (P) Ltd",
+          "base_lat": 31.216584,
+          "base_lon": 75.776725,
+          "equipment_level": null,
+          "eta_seconds": 800.9,
+          "driving_distance_km": 10.79,
+          "selection_reason": "Not chosen: recorded simulated road-network ETA (800.9 s) is longer than the selected unit (696.5 s) (derived from stored ETAs).",
+          "chosen": false
+        }
+      ],
+      "hospital_alternatives": [
+        {
+          "osm_id": "osm-node-7150766771",
+          "name": "Civil Hospital Phagwara",
+          "driving_km": 8.45,
+          "transit_seconds": 698.4,
+          "penalty": 0.0,
+          "adjusted_cost_seconds": 698.4,
+          "considered": true,
+          "note": "Chosen: lowest adjusted travel time (698.4s) among dispatch-eligible corridor facilities; emergency capability unverified",
+          "emergency_capability": "Emergency department and specialties not specified in OpenStreetMap; capability unverified",
+          "facility_category": null,
+          "emergency_status": null,
+          "recommended_for_emergency": null,
+          "suitability_rule": null
+        },
+        {
+          "osm_id": "osm-node-7105996895",
+          "name": "Parhar Hospital",
+          "driving_km": 10.61,
+          "transit_seconds": 776.8,
+          "penalty": 0.0,
+          "adjusted_cost_seconds": 776.8,
+          "considered": true,
+          "note": "Not chosen: driving time (776.8s) is longer than chosen hospital (698.4s)",
+          "emergency_capability": "Emergency department and specialties not specified in OpenStreetMap; capability unverified",
+          "facility_category": null,
+          "emergency_status": null,
+          "recommended_for_emergency": null,
+          "suitability_rule": null
+        },
+        {
+          "osm_id": "osm-node-7058964861",
+          "name": "Gandhi Hospital (P) Ltd",
+          "driving_km": 10.82,
+          "transit_seconds": 807.0,
+          "penalty": 0.0,
+          "adjusted_cost_seconds": 807.0,
+          "considered": true,
+          "note": "Not chosen: driving time (807.0s) is longer than chosen hospital (698.4s)",
+          "emergency_capability": "Emergency department and specialties not specified in OpenStreetMap; capability unverified",
+          "facility_category": null,
+          "emergency_status": null,
+          "recommended_for_emergency": null,
+          "suitability_rule": null
+        },
+        {
+          "osm_id": "osm-node-7065234238",
+          "name": "Gee Bee Hospital and Maternity Home",
+          "driving_km": 10.54,
+          "transit_seconds": 772.5,
+          "penalty": 0.3,
+          "adjusted_cost_seconds": 1236.0,
+          "considered": true,
+          "note": "Not chosen: down-ranked by suitability rule (Down-ranked by suitability rule: facility specialized in maternity, but incident has no reported maternity requirement.)",
+          "emergency_capability": "Emergency department and specialties not specified in OpenStreetMap; capability unverified",
+          "facility_category": null,
+          "emergency_status": null,
+          "recommended_for_emergency": null,
+          "suitability_rule": "Down-ranked by suitability rule: facility specialized in maternity, but incident has no reported maternity requirement."
+        },
+        {
+          "osm_id": "osm-node-7059030148",
+          "name": "Sharma Children Hospital",
+          "driving_km": 10.47,
+          "transit_seconds": 777.4,
+          "penalty": 0.3,
+          "adjusted_cost_seconds": 1243.9,
+          "considered": true,
+          "note": "Not chosen: down-ranked by suitability rule (Down-ranked by suitability rule: facility specialized in children, but incident has no reported children requirement.)",
+          "emergency_capability": "Emergency department and specialties not specified in OpenStreetMap; capability unverified",
+          "facility_category": null,
+          "emergency_status": null,
+          "recommended_for_emergency": null,
+          "suitability_rule": "Down-ranked by suitability rule: facility specialized in children, but incident has no reported children requirement."
+        },
+        {
+          "osm_id": "osm-node-7104017976",
+          "name": "Virk Hospital And Maternity Home",
+          "driving_km": 10.71,
+          "transit_seconds": 788.0,
+          "penalty": 0.3,
+          "adjusted_cost_seconds": 1260.7,
+          "considered": true,
+          "note": "Not chosen: down-ranked by suitability rule (Down-ranked by suitability rule: facility specialized in maternity, but incident has no reported maternity requirement.)",
+          "emergency_capability": "Emergency department and specialties not specified in OpenStreetMap; capability unverified",
+          "facility_category": null,
+          "emergency_status": null,
+          "recommended_for_emergency": null,
+          "suitability_rule": "Down-ranked by suitability rule: facility specialized in maternity, but incident has no reported maternity requirement."
+        },
+        {
+          "osm_id": "osm-node-7053504658",
+          "name": "Anoop Hospital And Heart Care Centre",
+          "driving_km": 10.79,
+          "transit_seconds": 798.5,
+          "penalty": 0.3,
+          "adjusted_cost_seconds": 1277.7,
+          "considered": true,
+          "note": "Not chosen: down-ranked by suitability rule (Down-ranked by suitability rule: facility specialized in heart/cardiac, but incident has no reported heart/cardiac requirement.)",
+          "emergency_capability": "Emergency department and specialties not specified in OpenStreetMap; capability unverified",
+          "facility_category": null,
+          "emergency_status": null,
+          "recommended_for_emergency": null,
+          "suitability_rule": "Down-ranked by suitability rule: facility specialized in heart/cardiac, but incident has no reported heart/cardiac requirement."
+        },
+        {
+          "osm_id": "osm-node-7062747354",
+          "name": "Mitra Eye Hospital",
+          "driving_km": 10.71,
+          "transit_seconds": 803.2,
+          "penalty": 0.3,
+          "adjusted_cost_seconds": 1285.1,
+          "considered": true,
+          "note": "Not chosen: down-ranked by suitability rule (Down-ranked by suitability rule: facility specialized in eye, but incident has no reported eye requirement.)",
+          "emergency_capability": "Emergency department and specialties not specified in OpenStreetMap; capability unverified",
+          "facility_category": null,
+          "emergency_status": null,
+          "recommended_for_emergency": null,
+          "suitability_rule": "Down-ranked by suitability rule: facility specialized in eye, but incident has no reported eye requirement."
+        }
+      ],
+      "map_png": "data/outputs/routes/loc-phagwara-lpu-chaheru_route.png",
+      "geojson": "data/outputs/routes/loc-phagwara-lpu-chaheru_route.geojson"
+    },
+    {
+      "location_id": "loc-phagwara-nh44-sugarmill",
+      "location_name": "NH-44 GT Road near Jagatjit Sugar Mill",
+      "incident": {
+        "lat": 31.2142,
+        "lon": 75.7785,
+        "data_source": "SIMULATED"
+      },
+      "severity": "not determined (demo placement)",
+      "ambulance": {
+        "id": "amb-phagwara-06",
+        "callsign": "AMB-FOXTROT-06",
+        "base_name": "Anoop Hospital And Heart Care Centre",
+        "base_lat": 31.215215,
+        "base_lon": 75.777335,
+        "equipment_level": "Critical Care",
+        "eta_seconds": 105.0,
+        "driving_distance_km": 0.57,
+        "selection_reason": "Chosen: lowest recorded simulated road-network ETA (105.0 s) among 6 simulated units (derived from stored ETAs).",
+        "selection_criteria": "Lowest simulated road-network travel time from A* over the cached OSM graph; ties broken by shorter straight-line distance. No live GPS, vehicle location, operational status or real ambulance contact is used.",
+        "data_source": "SIMULATED"
+      },
+      "hospital": {
+        "osm_id": "osm-node-7105996895",
+        "name": "Parhar Hospital",
+        "lat": 31.2147174,
+        "lon": 75.7757517,
+        "phone": "0182 426 0066",
+        "emergency_tag": null,
+        "specialties": null,
+        "emergency_capability": "Emergency department and specialties not specified in OpenStreetMap; capability unverified",
+        "data_source": "REAL",
+        "straight_line_km": 0.27,
+        "driving_km": 0.76,
+        "transit_seconds": 126.8
+      },
+      "leg_to_incident": [
+        [
+          31.21498,
+          75.777731
+        ],
+        [
+          31.21575,
+          75.777113
+        ],
+        [
+          31.216536,
+          75.779143
+        ],
+        [
+          31.215318,
+          75.779895
+        ],
+        [
+          31.215104,
+          75.779439
+        ],
+        [
+          31.214851,
+          75.778931
+        ]
+      ],
+      "leg_to_hospital": [
+        [
+          31.214851,
+          75.778931
+        ],
+        [
+          31.215104,
+          75.779439
+        ],
+        [
+          31.215318,
+          75.779895
+        ],
+        [
+          31.216536,
+          75.779143
+        ],
+        [
+          31.21575,
+          75.777113
+        ],
+        [
+          31.21498,
+          75.777731
+        ],
+        [
+          31.214773,
+          75.777362
+        ],
+        [
+          31.214612,
+          75.776777
+        ],
+        [
+          31.214537,
+          75.775934
+        ]
+      ],
+      "route_verification": {
+        "leg1_start": [
+          31.21498,
+          75.777731
+        ],
+        "leg1_end": [
+          31.214851,
+          75.778931
+        ],
+        "leg2_start": [
+          31.214851,
+          75.778931
+        ],
+        "leg2_end": [
+          31.214537,
+          75.775934
+        ],
+        "legs_join_at_incident": true,
+        "repeated_segments_leg1": 0,
+        "repeated_segments_leg2": 0,
+        "shared_segments_between_legs": 0,
+        "leg1_polyline_km": 0.57,
+        "leg2_polyline_km": 0.76,
+        "leg1_points": 6,
+        "leg2_points": 9
+      },
+      "location_context": {
+        "dispatch_lat": 31.2142,
+        "dispatch_lon": 75.7785,
+        "used_for": "Both A* route legs, leg distances, leg travel times and totals in Tab 6",
+        "caller_reported": null,
+        "caller_used_for": "Nothing in Tab 6; caller location is preserved separately from Tab 4",
+        "hospital_search": null,
+        "hospital_search_used_for": "Tab 5 straight-line lookup only; never substituted in Tab 6",
+        "gps_status": "NOT AVAILABLE \u2014 no device GPS verification was performed"
+      },
+      "total_km": 1.33,
+      "total_seconds": 231.8,
+      "traffic_note": "Estimated from OSM speed data; no live traffic information is available.",
+      "simulation_notice": "SIMULATED DISPATCH \u2014 NO REAL AMBULANCE HAS BEEN CONTACTED",
+      "ranking_formula": "adjusted_cost_sec = travel_time_sec * (1.0 + (suitability_penalty * 2.0))",
+      "ranking_priority": "source-reported emergency department (OSM emergency=yes) first; then facility category (trauma centre before hospital); then adjusted road travel time. This is a transparent heuristic, not verified medical suitability.",
+      "trajectory": [
+        {
+          "t_seconds": 0.0,
+          "lat": 31.21498,
+          "lon": 75.777731,
+          "leg": "leg1_ambulance_to_incident"
+        },
+        {
+          "t_seconds": 15.0,
+          "lat": 31.215588,
+          "lon": 75.777243,
+          "leg": "leg1_ambulance_to_incident"
+        },
+        {
+          "t_seconds": 30.0,
+          "lat": 31.215973,
+          "lon": 75.77769,
+          "leg": "leg1_ambulance_to_incident"
+        },
+        {
+          "t_seconds": 45.0,
+          "lat": 31.216278,
+          "lon": 75.778476,
+          "leg": "leg1_ambulance_to_incident"
+        },
+        {
+          "t_seconds": 60.0,
+          "lat": 31.216437,
+          "lon": 75.779204,
+          "leg": "leg1_ambulance_to_incident"
+        },
+        {
+          "t_seconds": 75.0,
+          "lat": 31.215785,
+          "lon": 75.779607,
+          "leg": "leg1_ambulance_to_incident"
+        },
+        {
+          "t_seconds": 90.0,
+          "lat": 31.215217,
+          "lon": 75.77968,
+          "leg": "leg1_ambulance_to_incident"
+        },
+        {
+          "t_seconds": 105.0,
+          "lat": 31.214851,
+          "lon": 75.778931,
+          "leg": "leg1_ambulance_to_incident"
+        },
+        {
+          "t_seconds": 120.0,
+          "lat": 31.215249,
+          "lon": 75.779747,
+          "leg": "leg2_incident_to_hospital"
+        },
+        {
+          "t_seconds": 135.0,
+          "lat": 31.215901,
+          "lon": 75.779535,
+          "leg": "leg2_incident_to_hospital"
+        },
+        {
+          "t_seconds": 150.0,
+          "lat": 31.216501,
+          "lon": 75.779052,
+          "leg": "leg2_incident_to_hospital"
+        },
+        {
+          "t_seconds": 165.0,
+          "lat": 31.216169,
+          "lon": 75.778196,
+          "leg": "leg2_incident_to_hospital"
+        },
+        {
+          "t_seconds": 180.0,
+          "lat": 31.215838,
+          "lon": 75.77734,
+          "leg": "leg2_incident_to_hospital"
+        },
+        {
+          "t_seconds": 195.0,
+          "lat": 31.215263,
+          "lon": 75.777504,
+          "leg": "leg2_incident_to_hospital"
+        },
+        {
+          "t_seconds": 210.0,
+          "lat": 31.214748,
+          "lon": 75.77727,
+          "leg": "leg2_incident_to_hospital"
+        },
+        {
+          "t_seconds": 225.0,
+          "lat": 31.214575,
+          "lon": 75.776358,
+          "leg": "leg2_incident_to_hospital"
+        },
+        {
+          "t_seconds": 231.8,
+          "lat": 31.214537,
+          "lon": 75.775934,
+          "leg": "leg2_incident_to_hospital"
+        }
+      ],
+      "ambulance_alternatives": [
+        {
+          "id": "amb-phagwara-06",
+          "callsign": "AMB-FOXTROT-06",
+          "base_name": "Anoop Hospital And Heart Care Centre",
+          "base_lat": 31.215215,
+          "base_lon": 75.777335,
+          "equipment_level": null,
+          "eta_seconds": 105.0,
+          "driving_distance_km": 0.57,
+          "selection_reason": "Chosen: lowest recorded simulated road-network ETA (105.0 s) among 6 simulated units (derived from stored ETAs).",
+          "chosen": true
+        },
+        {
+          "id": "amb-phagwara-04",
+          "callsign": "AMB-DELTA-04",
+          "base_name": "Gee Bee Hospital and Maternity Home",
+          "base_lat": 31.219951,
+          "base_lon": 75.778225,
+          "equipment_level": null,
+          "eta_seconds": 121.7,
+          "driving_distance_km": 0.71,
+          "selection_reason": "Not chosen: recorded simulated road-network ETA (121.7 s) is longer than the selected unit (105.0 s) (derived from stored ETAs).",
+          "chosen": false
+        },
+        {
+          "id": "amb-phagwara-03",
+          "callsign": "AMB-CHARLIE-03",
+          "base_name": "Parhar Hospital",
+          "base_lat": 31.214717,
+          "base_lon": 75.775752,
+          "equipment_level": null,
+          "eta_seconds": 126.8,
+          "driving_distance_km": 0.76,
+          "selection_reason": "Not chosen: recorded simulated road-network ETA (126.8 s) is longer than the selected unit (105.0 s) (derived from stored ETAs).",
+          "chosen": false
+        },
+        {
+          "id": "amb-phagwara-02",
+          "callsign": "AMB-BRAVO-02",
+          "base_name": "Gandhi Hospital (P) Ltd",
+          "base_lat": 31.216584,
+          "base_lon": 75.776725,
+          "equipment_level": null,
+          "eta_seconds": 134.8,
+          "driving_distance_km": 0.79,
+          "selection_reason": "Not chosen: recorded simulated road-network ETA (134.8 s) is longer than the selected unit (105.0 s) (derived from stored ETAs).",
+          "chosen": false
+        },
+        {
+          "id": "amb-phagwara-05",
+          "callsign": "AMB-ECHO-05",
+          "base_name": "Sharma Children Hospital",
+          "base_lat": 31.218129,
+          "base_lon": 75.775487,
+          "equipment_level": null,
+          "eta_seconds": 157.5,
+          "driving_distance_km": 0.98,
+          "selection_reason": "Not chosen: recorded simulated road-network ETA (157.5 s) is longer than the selected unit (105.0 s) (derived from stored ETAs).",
+          "chosen": false
+        },
+        {
+          "id": "amb-phagwara-01",
+          "callsign": "AMB-ALPHA-01",
+          "base_name": "Civil Hospital Phagwara",
+          "base_lat": 31.230527,
+          "base_lon": 75.762824,
+          "equipment_level": null,
+          "eta_seconds": 355.6,
+          "driving_distance_km": 3.27,
+          "selection_reason": "Not chosen: recorded simulated road-network ETA (355.6 s) is longer than the selected unit (105.0 s) (derived from stored ETAs).",
+          "chosen": false
+        }
+      ],
+      "hospital_alternatives": [
+        {
+          "osm_id": "osm-node-7105996895",
+          "name": "Parhar Hospital",
+          "driving_km": 0.76,
+          "transit_seconds": 126.8,
+          "penalty": 0.0,
+          "adjusted_cost_seconds": 126.8,
+          "considered": true,
+          "note": "Chosen: lowest adjusted travel time (126.8s) among dispatch-eligible corridor facilities; emergency capability unverified",
+          "emergency_capability": "Emergency department and specialties not specified in OpenStreetMap; capability unverified",
+          "facility_category": null,
+          "emergency_status": null,
+          "recommended_for_emergency": null,
+          "suitability_rule": null
+        },
+        {
+          "osm_id": "osm-node-7058964861",
+          "name": "Gandhi Hospital (P) Ltd",
+          "driving_km": 0.79,
+          "transit_seconds": 134.8,
+          "penalty": 0.0,
+          "adjusted_cost_seconds": 134.8,
+          "considered": true,
+          "note": "Not chosen: driving time (134.8s) is longer than chosen hospital (126.8s)",
+          "emergency_capability": "Emergency department and specialties not specified in OpenStreetMap; capability unverified",
+          "facility_category": null,
+          "emergency_status": null,
+          "recommended_for_emergency": null,
+          "suitability_rule": null
+        },
+        {
+          "osm_id": "osm-node-7062747354",
+          "name": "Mitra Eye Hospital",
+          "driving_km": 0.47,
+          "transit_seconds": 92.6,
+          "penalty": 0.3,
+          "adjusted_cost_seconds": 148.1,
+          "considered": true,
+          "note": "Not chosen: down-ranked by suitability rule (Down-ranked by suitability rule: facility specialized in eye, but incident has no reported eye requirement.)",
+          "emergency_capability": "Emergency department and specialties not specified in OpenStreetMap; capability unverified",
+          "facility_category": null,
+          "emergency_status": null,
+          "recommended_for_emergency": null,
+          "suitability_rule": "Down-ranked by suitability rule: facility specialized in eye, but incident has no reported eye requirement."
+        },
+        {
+          "osm_id": "osm-node-7053504658",
+          "name": "Anoop Hospital And Heart Care Centre",
+          "driving_km": 0.57,
+          "transit_seconds": 105.0,
+          "penalty": 0.3,
+          "adjusted_cost_seconds": 168.1,
+          "considered": true,
+          "note": "Not chosen: down-ranked by suitability rule (Down-ranked by suitability rule: facility specialized in heart/cardiac, but incident has no reported heart/cardiac requirement.)",
+          "emergency_capability": "Emergency department and specialties not specified in OpenStreetMap; capability unverified",
+          "facility_category": null,
+          "emergency_status": null,
+          "recommended_for_emergency": null,
+          "suitability_rule": "Down-ranked by suitability rule: facility specialized in heart/cardiac, but incident has no reported heart/cardiac requirement."
+        },
+        {
+          "osm_id": "osm-node-7065234238",
+          "name": "Gee Bee Hospital and Maternity Home",
+          "driving_km": 0.71,
+          "transit_seconds": 121.7,
+          "penalty": 0.3,
+          "adjusted_cost_seconds": 194.8,
+          "considered": true,
+          "note": "Not chosen: down-ranked by suitability rule (Down-ranked by suitability rule: facility specialized in maternity, but incident has no reported maternity requirement.)",
+          "emergency_capability": "Emergency department and specialties not specified in OpenStreetMap; capability unverified",
+          "facility_category": null,
+          "emergency_status": null,
+          "recommended_for_emergency": null,
+          "suitability_rule": "Down-ranked by suitability rule: facility specialized in maternity, but incident has no reported maternity requirement."
+        },
+        {
+          "osm_id": "osm-node-7059030148",
+          "name": "Sharma Children Hospital",
+          "driving_km": 0.98,
+          "transit_seconds": 157.5,
+          "penalty": 0.3,
+          "adjusted_cost_seconds": 252.0,
+          "considered": true,
+          "note": "Not chosen: down-ranked by suitability rule (Down-ranked by suitability rule: facility specialized in children, but incident has no reported children requirement.)",
+          "emergency_capability": "Emergency department and specialties not specified in OpenStreetMap; capability unverified",
+          "facility_category": null,
+          "emergency_status": null,
+          "recommended_for_emergency": null,
+          "suitability_rule": "Down-ranked by suitability rule: facility specialized in children, but incident has no reported children requirement."
+        },
+        {
+          "osm_id": "osm-node-7104017976",
+          "name": "Virk Hospital And Maternity Home",
+          "driving_km": 1.04,
+          "transit_seconds": 165.6,
+          "penalty": 0.3,
+          "adjusted_cost_seconds": 264.9,
+          "considered": true,
+          "note": "Not chosen: down-ranked by suitability rule (Down-ranked by suitability rule: facility specialized in maternity, but incident has no reported maternity requirement.)",
+          "emergency_capability": "Emergency department and specialties not specified in OpenStreetMap; capability unverified",
+          "facility_category": null,
+          "emergency_status": null,
+          "recommended_for_emergency": null,
+          "suitability_rule": "Down-ranked by suitability rule: facility specialized in maternity, but incident has no reported maternity requirement."
+        },
+        {
+          "osm_id": "osm-node-7150766771",
+          "name": "Civil Hospital Phagwara",
+          "driving_km": 3.46,
+          "transit_seconds": 378.5,
+          "penalty": 0.0,
+          "adjusted_cost_seconds": 378.5,
+          "considered": true,
+          "note": "Not chosen: driving time (378.5s) is longer than chosen hospital (126.8s)",
+          "emergency_capability": "Emergency department and specialties not specified in OpenStreetMap; capability unverified",
+          "facility_category": null,
+          "emergency_status": null,
+          "recommended_for_emergency": null,
+          "suitability_rule": null
+        }
+      ],
+      "map_png": "data/outputs/routes/loc-phagwara-nh44-sugarmill_route.png",
+      "geojson": "data/outputs/routes/loc-phagwara-nh44-sugarmill_route.geojson"
+    }
+  ]
+}

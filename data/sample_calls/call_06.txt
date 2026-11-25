@@ -1,0 +1,3 @@
+[DATA_SOURCE: SIMULATED]
+Emergency Dispatch Call Transcript - Call ID: call_06
+Caller: "A pedestrian was just struck by a speeding car on Hosur Road near Silk Board. The vehicle fled. The victim is lying motionless on the pavement, bleeding heavily from a head injury. Please send emergency medical response fast!"

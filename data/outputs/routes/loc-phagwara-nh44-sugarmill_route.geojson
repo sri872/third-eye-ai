@@ -1,0 +1,153 @@
+{
+  "type": "FeatureCollection",
+  "metadata": {
+    "route_id": "route-loc-phagwara-nh44-sugarmill",
+    "accident_id": "loc-phagwara-nh44-sugarmill",
+    "total_distance_km": 1.33,
+    "total_time_minutes": 3.8633333333333337,
+    "attribution": "\u00a9 OpenStreetMap contributors",
+    "disclaimer": "Estimated from OSM speed data, no live traffic",
+    "coverage_note": "Routing covers this corridor only (Phagwara corridor: 75.69-75.80\u00b0E, 31.20-31.27\u00b0N)",
+    "data_source": "SIMULATED"
+  },
+  "features": [
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            75.777731,
+            31.21498
+          ],
+          [
+            75.777113,
+            31.21575
+          ],
+          [
+            75.779143,
+            31.216536
+          ],
+          [
+            75.779895,
+            31.215318
+          ],
+          [
+            75.779439,
+            31.215104
+          ],
+          [
+            75.778931,
+            31.214851
+          ]
+        ]
+      },
+      "properties": {
+        "name": "Leg 1: Ambulance to Incident",
+        "ambulance_id": "amb-phagwara-06",
+        "eta_minutes": 1.7506666666666668,
+        "color": "#1E88E5",
+        "data_source": "SIMULATED"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            75.778931,
+            31.214851
+          ],
+          [
+            75.779439,
+            31.215104
+          ],
+          [
+            75.779895,
+            31.215318
+          ],
+          [
+            75.779143,
+            31.216536
+          ],
+          [
+            75.777113,
+            31.21575
+          ],
+          [
+            75.777731,
+            31.21498
+          ],
+          [
+            75.777362,
+            31.214773
+          ],
+          [
+            75.776777,
+            31.214612
+          ],
+          [
+            75.775934,
+            31.214537
+          ]
+        ]
+      },
+      "properties": {
+        "name": "Leg 2: Incident to Hospital",
+        "hospital_id": "osm-node-7105996895",
+        "transit_minutes": 2.114,
+        "color": "#D81B60",
+        "data_source": "SIMULATED"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          75.777731,
+          31.21498
+        ]
+      },
+      "properties": {
+        "name": "Ambulance Origin (amb-phagwara-06)",
+        "marker-symbol": "hospital",
+        "marker-color": "#1E88E5",
+        "data_source": "SIMULATED"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          75.7785,
+          31.2142
+        ]
+      },
+      "properties": {
+        "name": "Incident Scene (loc-phagwara-nh44-sugarmill)",
+        "marker-symbol": "danger",
+        "marker-color": "#F4511E",
+        "data_source": "SIMULATED"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          75.775934,
+          31.214537
+        ]
+      },
+      "properties": {
+        "name": "Target Hospital (osm-node-7105996895)",
+        "marker-symbol": "cross",
+        "marker-color": "#43A047",
+        "data_source": "SIMULATED"
+      }
+    }
+  ]
+}
