@@ -10,6 +10,7 @@ from __future__ import annotations
 import json
 import math
 import os
+from collections.abc import Mapping
 from pathlib import Path
 from typing import Any, Iterable, Iterator
 from urllib.parse import urlencode
@@ -18,6 +19,7 @@ import folium
 
 from core.hospitals.classification import CATEGORY_PRIORITY, classify_facility
 from core.hospitals.location_consistency import compare_locations
+from core.schemas import FOUR_TIER_ASSESSMENT_CATEGORIES
 from core.routing.dispatch import (
     AMBULANCE_SELECTION_CRITERIA,
     HOSPITAL_RANKING_PRIORITY,
@@ -136,6 +138,139 @@ def number_text(value: Any) -> str:
     if number.is_integer():
         return str(int(number))
     return f"{number:.6f}".rstrip("0").rstrip(".")
+
+
+# ---------------------------------------------------------------------------
+# Shared four-tier assessment: read-only context, never a dispatch decision
+# ---------------------------------------------------------------------------
+ASSESSMENT_CATEGORIES = FOUR_TIER_ASSESSMENT_CATEGORIES
+ASSESSMENT_SOURCE = "REAL (SHARED ASSESSMENT)"
+ASSESSMENT_RULE_SOURCE = "OPERATIONAL RULE"
+ASSESSMENT_MODEL_SOURCE = "MODEL (PREDICTION)"
+ASSESSMENT_RULE = (
+    "Context only: this assessment does NOT itself dispatch, clear, or prioritize an "
+    "incident; dispatcher verification is required."
+)
+
+
+def _assessment_fields(assessment: dict[str, Any] | None) -> dict[str, Any]:
+    """Read the shared assessment verbatim; never derive a new category here."""
+    if not isinstance(assessment, Mapping):
+        return {}
+    nested = assessment.get("assessment")
+    if "assessment_category" not in assessment and isinstance(nested, Mapping):
+        return dict(nested)
+    return dict(assessment)
+
+
+def _assessment_category(fields: Mapping[str, Any]) -> str:
+    category = display(fields.get("assessment_category"))
+    return category if category in ASSESSMENT_CATEGORIES else NOT_DETERMINED
+
+
+def _concise_evidence(value: Any, *, max_items: int = 2, max_chars: int = 160) -> str:
+    """Shorten a shared evidence list for a table cell without inventing text."""
+    if isinstance(value, (list, tuple)):
+        items = [display(item) for item in value[:max_items]]
+        text = " | ".join(items)
+    else:
+        text = display(value)
+    if not text or text == NOT_DETERMINED:
+        return NOT_DETERMINED
+    return text if len(text) <= max_chars else text[: max_chars - 3].rstrip() + "..."
+
+
+def assessment_dispatch_rows(assessment: dict[str, Any] | None) -> list[dict[str, str]]:
+    """Source-labelled Field/Value/Source rows for the shared assessment table.
+
+    The category and model output are copied from the one shared assessment dict;
+    Dispatch does not recalculate, upgrade or calibrate them, and nothing in these
+    rows starts, clears or prioritizes a simulated or real dispatch action.
+    """
+    fields = _assessment_fields(assessment)
+    category = _assessment_category(fields)
+    score = display(fields.get("model_score"))
+    score_value = (
+        f"{score} (uncalibrated; not a calibrated probability)"
+        if score != NOT_DETERMINED
+        else NOT_DETERMINED
+    )
+    return [
+        {
+            "Field": "Assessment category",
+            "Value": category,
+            "Source": ASSESSMENT_SOURCE,
+        },
+        {
+            "Field": "Human review",
+            "Value": "MANDATORY",
+            "Source": ASSESSMENT_RULE_SOURCE,
+        },
+        {
+            "Field": "Model verdict",
+            "Value": display(fields.get("model_verdict")),
+            "Source": ASSESSMENT_MODEL_SOURCE,
+        },
+        {
+            "Field": "Model score",
+            "Value": score_value,
+            "Source": ASSESSMENT_MODEL_SOURCE,
+        },
+        {
+            "Field": "Media type",
+            "Value": display(fields.get("media_type")),
+            "Source": ASSESSMENT_SOURCE,
+        },
+        {
+            "Field": "Scene status",
+            "Value": display(fields.get("scene_status")),
+            "Source": ASSESSMENT_SOURCE,
+        },
+        {
+            "Field": "Evidence summary",
+            "Value": _concise_evidence(fields.get("evidence")),
+            "Source": ASSESSMENT_SOURCE,
+        },
+        {
+            "Field": "Contradictory evidence summary",
+            "Value": _concise_evidence(fields.get("contradictory_evidence")),
+            "Source": ASSESSMENT_SOURCE,
+        },
+        {
+            "Field": "Dispatch rule",
+            "Value": ASSESSMENT_RULE,
+            "Source": "RULE (CONTEXT ONLY)",
+        },
+    ]
+
+
+def assessment_dispatch_notice(assessment: dict[str, Any] | None) -> str:
+    """Short conservative notice; never a road conclusion or dispatch decision."""
+    category = _assessment_category(_assessment_fields(assessment))
+    context = (
+        "Context only: this simulated demo does not dispatch, clear, or prioritize an "
+        "incident; dispatcher verification is required."
+    )
+    if category == NOT_DETERMINED:
+        return f"Shared assessment not supplied; category not determined. {context}"
+    if category == "ACCIDENT EVIDENCE DETECTED":
+        detail = (
+            "The shared assessment reports accident-related evidence, still subject to "
+            "mandatory human review and dispatcher verification."
+        )
+    elif category == "POSSIBLE ACCIDENT":
+        detail = (
+            "The prediction and overlapping boxes are diagnostic cues only; they do not "
+            "establish a collision on their own."
+        )
+    elif category == "INCONCLUSIVE":
+        detail = "The available cues do not establish what happened in this sample."
+    else:
+        detail = (
+            "This sample contained insufficient positive evidence; that does not mean no "
+            "incident occurred or that conditions are settled."
+        )
+    return f"Shared assessment category: {category}. {detail} {context}"
 
 
 def coordinate_pair(

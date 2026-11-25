@@ -40,6 +40,18 @@ def _is_placeholder_location(value: Optional[str]) -> bool:
     )
 
 
+def _assessment_payload(accident_event: AccidentEvent) -> Optional[dict]:
+    """Return the exact shared assessment produced upstream, never a recalculation."""
+    assessment = getattr(accident_event, "evidence_assessment", None)
+    if assessment is None:
+        return None
+    if hasattr(assessment, "as_dict"):
+        return assessment.as_dict()
+    if hasattr(assessment, "model_dump"):
+        return assessment.model_dump(mode="json")
+    return dict(assessment)
+
+
 def _normalise_location(value: Optional[str]) -> str:
     """Compare locations without silently rewriting the stored value."""
     return " ".join(str(value or "").split()).casefold()
@@ -203,7 +215,7 @@ def fuse_incident_evidence(
     if vision_unconfirmed and conflict_details:
         source_disagreements.append(
             "SOURCE DISAGREEMENT: CALLER-REPORTED ACCIDENT — VISUAL MODEL DOES NOT CONFIRM. "
-            f"REAL VISION assessment [{accident_event.verdict}] "
+            f"Raw model output [{accident_event.verdict}] "
             f"(uncalibrated score {score_text}) conflicts with "
             + "; ".join(conflict_details)
             + ". Caller evidence is tagged SIMULATED, retained separately, and does not "
@@ -233,8 +245,8 @@ def fuse_incident_evidence(
         "Data Source: SIMULATED (Vision data REAL, paired with SIMULATED emergency call)",
         "==================================================================",
         "\n1. MULTIMODAL EXECUTIVE VERDICT:",
-        f"  - REAL VISION ASSESSMENT (uploaded-media result): [{accident_event.verdict}] (Source: VISION, raw uncalibrated score: {score_text})",
-        f"  - Severity Level: {accident_event.severity.upper()} (Source: VISION)",
+        f"  - RAW MODEL OUTPUT (diagnostic only, not a determination): [{accident_event.verdict}] (Source: MODEL (PREDICTION), raw uncalibrated score: {score_text})",
+        f"  - Severity Level: {accident_event.severity.upper()} (Source: MODEL (PREDICTION))",
         f"  - Image-associated location: {image_loc or 'Unknown'} (Source: {image_loc_source})",
         f"  - Caller-reported location: {caller_loc or 'Unknown'} (Source: {'CALLER_SIMULATED' if caller_loc else 'MISSING'})",
         f"  - LOCATION MISMATCH: {'YES' if location_mismatch else 'NO'} (both source values retained verbatim)",
@@ -242,6 +254,41 @@ def fuse_incident_evidence(
         f"  - SIMULATED CALLER URGENCY (not a verified priority): {urgency.upper() if urgency else 'NOT SPECIFIED'} (Source: {urgency_source})",
         "  - Dispatcher verification required before acting on any simulated caller claim.",
     ]
+
+    assessment_payload = _assessment_payload(accident_event)
+    if assessment_payload is not None:
+        category = str(assessment_payload.get("assessment_category") or "NOT DETERMINED")
+        raw_verdict = str(assessment_payload.get("model_verdict") or "not determined")
+        raw_score = assessment_payload.get("model_score")
+        raw_score_text = (
+            f"{float(raw_score):.4f}" if raw_score is not None else "not determined"
+        )
+        fused_blocks.extend(
+            [
+                "\n1b. FOUR-TIER ACCIDENT EVIDENCE ASSESSMENT (exact shared contract; source: SHARED EVIDENCE ASSESSMENT):",
+                f"  - Assessment category: [{category}]",
+                "  - Human review: MANDATORY — required for every category, including no-clear-evidence results.",
+                f"  - Original classifier verdict (separate diagnostic field): {raw_verdict}",
+                f"  - Uncalibrated classifier score (not calibrated confidence): {raw_score_text}",
+                f"  - Media type: {assessment_payload.get('media_type', 'NOT DETERMINED')}",
+                f"  - Domain compatibility: {assessment_payload.get('domain_compatibility', 'NOT DETERMINED')}",
+                f"  - Scene status: {assessment_payload.get('scene_status', 'NOT DETERMINED')}",
+                "  - Evidence: "
+                + "; ".join(str(item) for item in (assessment_payload.get("evidence") or []))
+                if assessment_payload.get("evidence")
+                else "  - Evidence: none supplied",
+                "  - Contradictory evidence: "
+                + "; ".join(
+                    str(item) for item in (assessment_payload.get("contradictory_evidence") or [])
+                )
+                if assessment_payload.get("contradictory_evidence")
+                else "  - Contradictory evidence: none supplied",
+                f"  - Uncertainty: {assessment_payload.get('uncertainty', 'NOT DETERMINED')}",
+                f"  - Reasoning: {assessment_payload.get('reasoning', 'NOT DETERMINED')}",
+                "  - Safety rule: NO CLEAR ACCIDENT EVIDENCE DETECTED means insufficient positive "
+                "evidence in this sample; it never means road safe or no accident occurred.",
+            ]
+        )
 
     # Disagreements section (count-level; kept verbatim for existing consumers)
     if disagreements:
@@ -314,7 +361,7 @@ def fuse_incident_evidence(
         fused_blocks.append(
             "  - Limitation: evenly sampled frames only; no full-clip inference, no "
             "temporal ground truth, and no accident confirmation. This evidence never "
-            "overrides the REAL VISION verdict."
+            "overrides the shared four-tier assessment."
         )
 
     summary_text = "\n".join(fused_blocks)
@@ -360,6 +407,7 @@ def fuse_incident_evidence(
         pedestrians_mentioned=caller_extraction.pedestrians_mentioned if caller_extraction else False,
         passengers_mentioned=caller_extraction.passengers_mentioned if caller_extraction else False,
         caller_contradictions=caller_extraction.contradictions if caller_extraction else [],
+        evidence_assessment=assessment_payload,
     )
 
     if save_to_db:

@@ -20,6 +20,7 @@ from torchvision.models.detection import (
     fasterrcnn_resnet50_fpn,
 )
 
+from core.cv.scene_analysis import SuppressionResult, suppress_duplicate_detections
 from core.schemas import Detection
 
 logger = logging.getLogger("third_eye.cv.detector")
@@ -172,19 +173,11 @@ def filter_detections(
     return results
 
 
-def detect(
+def _run_model_detection(
     image: Union[str, Path, np.ndarray, Image.Image],
-    conf_threshold: float = 0.5,
-) -> List[Detection]:
-    """Detect vehicles and persons in the provided image using Faster R-CNN ResNet-50 FPN.
-
-    Args:
-        image: Path to image file, PIL Image, or NumPy array.
-        conf_threshold: Minimum confidence threshold [0.0 - 1.0]. Default 0.5.
-
-    Returns:
-        List of Detection schema objects (data_source="REAL", real confidence).
-    """
+    conf_threshold: float,
+) -> Tuple[List[Detection], Tuple[int, int]]:
+    """Run one real inference pass and return raw filtered detections + dimensions."""
     model, device, categories = get_detector_model()
     tensor, (width, height), _ = preprocess_image(image)
 
@@ -210,21 +203,68 @@ def detect(
     labels = output["labels"].detach().cpu()
     scores = output["scores"].detach().cpu()
 
-    return filter_detections(
-        boxes=boxes,
-        labels=labels,
-        scores=scores,
-        categories=categories,
-        img_width=width,
-        img_height=height,
-        conf_threshold=conf_threshold,
+    return (
+        filter_detections(
+            boxes=boxes,
+            labels=labels,
+            scores=scores,
+            categories=categories,
+            img_width=width,
+            img_height=height,
+            conf_threshold=conf_threshold,
+        ),
+        (width, height),
     )
+
+
+def detect_with_diagnostics(
+    image: Union[str, Path, np.ndarray, Image.Image],
+    conf_threshold: float = 0.5,
+) -> SuppressionResult:
+    """Return both raw and postprocessed detections for forensic transparency.
+
+    Image and video frames both go through this identical contract. Raw model
+    output is retained even when a near-duplicate is suppressed.
+    """
+    raw, _ = _run_model_detection(image, conf_threshold)
+    return suppress_duplicate_detections(raw)
+
+
+def detect(
+    image: Union[str, Path, np.ndarray, Image.Image],
+    conf_threshold: float = 0.5,
+    suppress_duplicates: bool = True,
+) -> List[Detection]:
+    """Detect vehicles and persons using Faster R-CNN ResNet-50 FPN.
+
+    Args:
+        image: Path to image file, PIL Image, or NumPy array.
+        conf_threshold: Minimum confidence threshold [0.0 - 1.0]. Default 0.5.
+        suppress_duplicates: Apply class-aware duplicate suppression. Set to
+            False to obtain raw filtered model output.
+
+    Returns:
+        List of Detection schema objects (data_source="REAL", real confidence).
+    """
+    raw, _ = _run_model_detection(image, conf_threshold)
+    if not suppress_duplicates:
+        return raw
+    return list(suppress_duplicate_detections(raw).detections)
+
+
+def detect_frame(
+    frame: Union[np.ndarray, Image.Image],
+    conf_threshold: float = 0.5,
+) -> List[Detection]:
+    """Video-frame entry point with the same detection contract as images."""
+    return detect(frame, conf_threshold=conf_threshold)
 
 
 def detect_with_orientation(
     image: Union[str, Path, np.ndarray, Image.Image],
     conf_threshold: float = 0.5,
     min_rotation_confidence: float = 0.7,
+    include_suppression_diagnostics: bool = False,
 ) -> Tuple[List[Detection], Image.Image, dict]:
     """Detect objects, retrying quarter turns only when the source has none.
 
@@ -234,7 +274,9 @@ def detect_with_orientation(
     only when it contains a detection at or above ``min_rotation_confidence``.
     The returned PIL image is the exact orientation used for inference, so all
     returned boxes are in that displayed image's pixel coordinates. The source
-    file/bytes are never modified.
+    file/bytes are never modified. When ``include_suppression_diagnostics`` is
+    true, the accepted orientation is run through ``detect_with_diagnostics``
+    once and its raw/postprocessed audit is added to the returned metadata.
     """
     if isinstance(image, (str, Path)):
         pil_img = ImageOps.exif_transpose(Image.open(str(image))).convert("RGB")
@@ -262,8 +304,16 @@ def detect_with_orientation(
         "reason": "source orientation retained; detections found at original orientation",
     }
 
-    detections = detect(pil_img, conf_threshold=conf_threshold)
+    def _run_oriented(candidate: Image.Image):
+        if include_suppression_diagnostics:
+            diagnostics = detect_with_diagnostics(candidate, conf_threshold=conf_threshold)
+            return list(diagnostics.detections), diagnostics
+        return detect(candidate, conf_threshold=conf_threshold), None
+
+    detections, diagnostics = _run_oriented(pil_img)
     if detections:
+        if diagnostics is not None:
+            info["duplicate_suppression"] = diagnostics.as_dict()
         return detections, pil_img, info
 
     info["reason"] = (
@@ -274,17 +324,19 @@ def detect_with_orientation(
     best_image = pil_img
     best_angle = 0
     best_confidence = 0.0
+    best_diagnostics = None
 
     for angle in (90, 180, 270):
         info["attempted_rotations_deg"].append(angle)
         rotated = pil_img.rotate(angle, expand=True)
-        candidates = detect(rotated, conf_threshold=conf_threshold)
+        candidates, candidate_diagnostics = _run_oriented(rotated)
         top_confidence = max(
             (float(item.confidence or 0.0) for item in candidates), default=0.0
         )
         if candidates and top_confidence >= min_rotation_confidence and top_confidence > best_confidence:
             best_detections, best_image, best_angle = candidates, rotated, angle
             best_confidence = top_confidence
+            best_diagnostics = candidate_diagnostics
 
     if best_detections:
         info.update(
@@ -298,6 +350,8 @@ def detect_with_orientation(
                 f"{best_confidence:.4f}; source file unchanged"
             ),
         )
+        if best_diagnostics is not None:
+            info["duplicate_suppression"] = best_diagnostics.as_dict()
     else:
         info["reason"] = (
             "no accepted detection at source orientation or at any quarter turn; "

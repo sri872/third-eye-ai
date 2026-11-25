@@ -23,8 +23,13 @@ from app.dispatch_ui import (
     FALLBACK_TILE_NAME,
     GOOGLE_MAPS_LABEL,
     SIMULATION_NOTICE,
+    ASSESSMENT_CATEGORIES,
+    ASSESSMENT_MODEL_SOURCE,
+    ASSESSMENT_RULE,
     alternative_rows,
     ambulance_selection_reason,
+    assessment_dispatch_notice,
+    assessment_dispatch_rows,
     build_dispatch_map,
     build_google_maps_url,
     coord_text,
@@ -52,6 +57,7 @@ from app.dispatch_ui import (
 )
 from core.hospitals.emergency_numbers import get_emergency_numbers
 from core.routing.dispatch import AMBULANCE_SELECTION_CRITERIA, route_geometry_audit
+from core.schemas import EvidenceAssessment
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 APP_FILE = REPO_ROOT / "app" / "main.py"
@@ -502,3 +508,139 @@ def test_tab6_layout_and_honesty_statements(scenario: dict) -> None:
     assert "This app does not place calls; dial from your phone." in text
     assert "trauma-suited" not in text.lower()
     assert "gps verified" not in text.lower()
+
+
+# ---------------------------------------------------------------------------
+# Shared four-tier assessment: verbatim context, never a dispatch decision
+# ---------------------------------------------------------------------------
+def _shared_assessment(category: str, **overrides: object) -> dict:
+    """Build the exact shared assessment dict via the shared schema."""
+    fields: dict[str, object] = {
+        "assessment_category": category,
+        "model_verdict": "Accident detected",
+        "model_score": 0.87,
+        "media_type": "video",
+        "domain_compatibility": "IN-DOMAIN (sampled video frames)",
+        "scene_status": "VIDEO SAMPLE REVIEWED (NOT DETERMINED)",
+        "evidence": [
+            "MODEL (PREDICTION): raw verdict 'Accident detected', uncalibrated score 0.8700.",
+            "REAL (VISION): 2 detected vehicle box(es); detector output only.",
+        ],
+        "contradictory_evidence": [
+            "No validated temporal impact sequence was produced in this sample."
+        ],
+        "evidence_sources": ["MODEL (PREDICTION)", "REAL (VISION)"],
+        "uncertainty": "HIGH",
+        "human_review_required": True,
+        "reasoning": "Sampled frames only; human review required.",
+        "temporal_evidence_available": True,
+        "data_source": "REAL",
+    }
+    fields.update(overrides)
+    return EvidenceAssessment(**fields).model_dump(mode="json")  # type: ignore[arg-type]
+
+
+def _row(rows: list[dict[str, str]], field: str) -> dict[str, str]:
+    return next(row for row in rows if row["Field"] == field)
+
+
+@pytest.mark.parametrize("category", ASSESSMENT_CATEGORIES)
+def test_assessment_rows_pass_through_all_four_categories(category: str) -> None:
+    assessment = _shared_assessment(category)
+    rows = assessment_dispatch_rows(assessment)
+
+    assert all(set(row) == {"Field", "Value", "Source"} for row in rows)
+    assert all(isinstance(value, str) for row in rows for value in row.values())
+    assert _row(rows, "Assessment category")["Value"] == category
+    assert _row(rows, "Model verdict")["Value"] == assessment["model_verdict"]
+    assert _row(rows, "Model verdict")["Source"] == ASSESSMENT_MODEL_SOURCE
+    score = _row(rows, "Model score")
+    assert "0.87" in score["Value"] and "uncalibrated" in score["Value"]
+    assert score["Source"] == ASSESSMENT_MODEL_SOURCE
+    assert _row(rows, "Media type")["Value"] == assessment["media_type"]
+    assert _row(rows, "Scene status")["Value"] == assessment["scene_status"]
+    assert "detected vehicle box" in _row(rows, "Evidence summary")["Value"]
+    assert "No validated temporal impact sequence" in _row(
+        rows, "Contradictory evidence summary"
+    )["Value"]
+    assert _row(rows, "Dispatch rule")["Value"] == ASSESSMENT_RULE
+
+
+def test_assessment_category_is_not_recalculated_from_model_output() -> None:
+    """A high prediction must not upgrade the shared category in Dispatch."""
+    assessment = _shared_assessment(
+        "NO CLEAR ACCIDENT EVIDENCE DETECTED",
+        model_verdict="Accident detected",
+        model_score=0.99,
+    )
+    rows = assessment_dispatch_rows(assessment)
+    assert _row(rows, "Assessment category")["Value"] == (
+        "NO CLEAR ACCIDENT EVIDENCE DETECTED"
+    )
+    assert _row(rows, "Model score")["Value"].startswith("0.99")
+
+
+@pytest.mark.parametrize("category", ASSESSMENT_CATEGORIES)
+def test_assessment_rows_keep_human_review_mandatory(category: str) -> None:
+    assessment = _shared_assessment(category)
+    assert assessment["human_review_required"] is True
+    review = _row(assessment_dispatch_rows(assessment), "Human review")
+    assert review["Value"] == "MANDATORY"
+    assert review["Source"] == "OPERATIONAL RULE"
+
+    with pytest.raises(ValueError, match="human_review_required"):
+        _shared_assessment(category, human_review_required=False)
+
+
+def test_missing_assessment_renders_not_determined_without_invented_category() -> None:
+    for assessment in (None, {}, {"assessment_category": None}):
+        rows = assessment_dispatch_rows(assessment)
+        assert _row(rows, "Assessment category")["Value"] == "not determined"
+        for field in (
+            "Model verdict",
+            "Model score",
+            "Media type",
+            "Scene status",
+            "Evidence summary",
+            "Contradictory evidence summary",
+        ):
+            assert _row(rows, field)["Value"] == "not determined"
+        assert _row(rows, "Human review")["Value"] == "MANDATORY"
+        assert _row(rows, "Dispatch rule")["Value"] == ASSESSMENT_RULE
+        notice = assessment_dispatch_notice(assessment)
+        assert "not determined" in notice
+        assert not any(category in notice for category in ASSESSMENT_CATEGORIES)
+
+
+@pytest.mark.parametrize("category", [*ASSESSMENT_CATEGORIES, None])
+def test_assessment_stays_separate_from_simulated_dispatch_action(
+    category: str | None,
+) -> None:
+    assessment = _shared_assessment(category) if category else None
+    rule = _row(assessment_dispatch_rows(assessment), "Dispatch rule")["Value"].lower()
+    notice = assessment_dispatch_notice(assessment).lower()
+
+    for text in (rule, notice):
+        assert "does not dispatch" in text or "does not itself dispatch" in text
+        assert "clear" in text and "prioritize" in text
+        assert "dispatcher verification is required" in text
+        assert "simulated demo" in text or "context only" in text
+    assert "no real ambulance has been contacted" not in notice
+    assert "ambulance dispatched" not in notice
+
+
+@pytest.mark.parametrize("category", [*ASSESSMENT_CATEGORIES, None])
+def test_assessment_notice_has_no_forbidden_safety_claims(category: str | None) -> None:
+    assessment = _shared_assessment(category) if category else None
+    notice = assessment_dispatch_notice(assessment)
+    lowered = notice.lower()
+
+    assert "safe" not in lowered
+    assert "confirmed" not in lowered
+    assert "calibrated confidence" not in lowered
+    assert "collision proven" not in lowered
+    assert "overlap alone" not in lowered
+    if category == "NO CLEAR ACCIDENT EVIDENCE DETECTED":
+        assert "does not mean no incident occurred" in lowered
+    if category == "ACCIDENT EVIDENCE DETECTED":
+        assert "human review" in lowered

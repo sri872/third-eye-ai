@@ -132,6 +132,66 @@ class OccupantReport(BaseThirdEyeModel):
     timestamp: Optional[datetime] = Field(default=None)
 
 
+FOUR_TIER_ASSESSMENT_CATEGORIES = (
+    "ACCIDENT EVIDENCE DETECTED",
+    "POSSIBLE ACCIDENT",
+    "INCONCLUSIVE",
+    "NO CLEAR ACCIDENT EVIDENCE DETECTED",
+)
+
+STILL_IMAGE_SCENE_STATUS = "NOT DETERMINED (out-of-domain still image)"
+
+
+class EvidenceAssessment(BaseThirdEyeModel):
+    """Shared four-tier accident evidence assessment.
+
+    This is the single contract consumed by Accident Check, Incident Report and
+    Dispatch. It is deliberately distinct from the raw classifier verdict kept
+    in ``AccidentEvent.verdict``: a model prediction is diagnostic output, not a
+    confirmed real-world collision. Never fabricate evidence or calibrated
+    confidence here.
+    """
+
+    assessment_category: Literal[
+        "ACCIDENT EVIDENCE DETECTED",
+        "POSSIBLE ACCIDENT",
+        "INCONCLUSIVE",
+        "NO CLEAR ACCIDENT EVIDENCE DETECTED",
+    ]
+    model_verdict: Optional[str] = Field(
+        default=None,
+        description="Original unmodified classifier verdict (diagnostic only).",
+    )
+    model_score: Optional[float] = Field(
+        default=None,
+        ge=0.0,
+        le=1.0,
+        description="Uncalibrated classifier score, never presented as calibrated probability.",
+    )
+    media_type: Literal["image", "video", "unknown"] = "unknown"
+    domain_compatibility: str = "NOT DETERMINED"
+    scene_status: str = "NOT DETERMINED"
+    evidence: List[str] = Field(default_factory=list)
+    contradictory_evidence: List[str] = Field(default_factory=list)
+    evidence_sources: List[str] = Field(default_factory=list)
+    uncertainty: str = "HIGH"
+    human_review_required: bool = True
+    reasoning: str = "NOT DETERMINED — insufficient evidence for an evidence assessment."
+    temporal_evidence_available: bool = False
+    data_source: DataSourceType = "REAL"
+
+    @field_validator("human_review_required")
+    @classmethod
+    def _review_always_required(cls, value: bool) -> bool:
+        if value is not True:
+            raise ValueError("human_review_required must remain True for accident assessments")
+        return True
+
+    def as_dict(self) -> dict:
+        """Return a JSON-safe copy for the report, dispatch and database layers."""
+        return self.model_dump(mode="json")
+
+
 class AccidentEvent(BaseThirdEyeModel):
     """Core accident incident record."""
     event_id: str = Field(..., min_length=1)
@@ -171,6 +231,10 @@ class AccidentEvent(BaseThirdEyeModel):
     reasons: Optional[str] = Field(
         default=None,
         description="Forensic explanation of triggered rules or geometric feature highlights."
+    )
+    evidence_assessment: Optional[EvidenceAssessment] = Field(
+        default=None,
+        description="Structured four-tier evidence assessment; the raw classifier verdict stays in `verdict`.",
     )
 
 
@@ -437,4 +501,10 @@ class IncidentReport(BaseThirdEyeModel):
     caller_contradictions: List[str] = Field(
         default_factory=list,
         description="Intra-call contradictory statements identified",
+    )
+    # The exact structured assessment produced upstream. The report never
+    # recalculates the category; a missing value stays explicit.
+    evidence_assessment: Optional[dict] = Field(
+        default=None,
+        description="Verbatim shared four-tier assessment from the accident-analysis pipeline.",
     )

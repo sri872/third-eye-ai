@@ -19,9 +19,17 @@ import cv2
 import numpy as np
 
 from core.cv.detector import detect, detect_with_orientation
-from core.cv.plate_detector import detect_plate_regions
+from core.cv.plate_detector import (
+    AMBIGUOUS,
+    ASSOCIATED,
+    NO_PLATE_REGION,
+    UNASSOCIATED,
+    PlateAssociation,
+    associate_plate_regions,
+    detect_plate_regions,
+)
 from core.cv.vehicle_attributes import crop_vehicle, dominant_color, get_vehicle_type
-from core.ocr.plate_reader import preprocess_plate_region, read_plate_evidence
+from core.ocr.plate_reader import read_plate_evidence
 from core.schemas import VehicleReport
 from db.database import save_vehicle_reports
 
@@ -29,6 +37,24 @@ logger = logging.getLogger("third_eye.cv.vehicle_report")
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
 DEFAULT_OUTPUT_DIR = PROJECT_ROOT / "data" / "outputs" / "crops"
+
+
+def plate_detection_status_for_association(association: PlateAssociation) -> str:
+    """Map a geometry association result onto the existing string status field.
+
+    The ASSOCIATED status keeps the established "PLATE REGION DETECTED" text so
+    downstream readability refinements still work. Ambiguous and unassociated
+    cases are reported explicitly and never select a region for OCR.
+    """
+    if association.status == NO_PLATE_REGION:
+        return NO_PLATE_REGION
+    if association.status == AMBIGUOUS:
+        return "PLATE REGION DETECTED — AMBIGUOUS ASSOCIATION"
+    if association.status == UNASSOCIATED:
+        return "PLATE REGION UNASSOCIATED"
+    if association.status == ASSOCIATED:
+        return "PLATE REGION DETECTED"
+    return f"PLATE REGION ASSOCIATION {association.status}"
 
 
 def save_annotated_crop(
@@ -135,26 +161,24 @@ def build_vehicle_reports(
             crop_y0 + crop.shape[0],
         )
         regions = detect_plate_regions(crop, vehicle_bbox)
+        association = associate_plate_regions(
+            regions, vehicle_bbox, img.shape[1], img.shape[0]
+        )
         plate_text: Optional[str] = None
         ocr_conf: Optional[float] = None
-        detection_status = "NO PLATE REGION DETECTED"
+        detection_status = plate_detection_status_for_association(association)
         plate_bbox: Optional[Tuple[int, int, int, int]] = None
         plate_detector: Optional[str] = None
-        if regions:
-            region = regions[0]
+        region = association.region
+        if region is not None:
             lx0, ly0, lx1, ly1 = region.bbox_local
             plate_crop = crop[ly0:ly1, lx0:lx1]
-            detection_status = "PLATE REGION DETECTED"
             plate_bbox = region.bbox_original
             plate_detector = region.method
             try:
-                ev_proc = read_plate_evidence(preprocess_plate_region(plate_crop))
-                ev_raw = read_plate_evidence(plate_crop)
-                evidence = (
-                    ev_raw
-                    if (ev_raw.plate and (not ev_proc.plate or (ev_raw.plate_confidence or 0) > (ev_proc.plate_confidence or 0)))
-                    else ev_proc
-                )
+                # Variant evaluation lives in plate_reader; its per-image cache
+                # avoids repeating OCR on the processed/raw crop pair.
+                evidence = read_plate_evidence(plate_crop)
                 plate_text = evidence.plate
                 ocr_conf = evidence.plate_confidence
             except Exception as exc:

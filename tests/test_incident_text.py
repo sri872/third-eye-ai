@@ -33,7 +33,9 @@ class TestIncidentTextSummary:
         )
         summary = generate_incident_summary(event)
         assert "NO ACCIDENT SIGNAL" in summary
-        assert "normal traffic flow" in summary
+        assert "NO CLEAR ACCIDENT EVIDENCE DETECTED" in summary
+        assert "not a finding of normal traffic flow" in summary
+        assert "road safety" in summary
         assert "Evidence Sources & Operational Constraints" in summary
         assert "Visible exterior only" in summary
 

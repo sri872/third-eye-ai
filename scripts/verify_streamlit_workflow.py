@@ -77,7 +77,7 @@ def run_demo(name: str, mime: str, call_option: str | None) -> dict:
     else:
         assert all(
             expected in accident
-            for expected in ("Model verdict", "Uncalibrated model score")
+            for expected in ("Raw model verdict", "Uncalibrated model score")
         )
     assert "Incident report" in report or "SOURCE" in report.upper()
     assert "Hospitals" in hospitals or "OSM" in hospitals

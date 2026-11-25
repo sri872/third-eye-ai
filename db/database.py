@@ -74,6 +74,7 @@ CREATE TABLE IF NOT EXISTS accident_events (
     verdict TEXT,
     persons_near_vehicles_count INTEGER DEFAULT 0 CHECK(persons_near_vehicles_count >= 0),
     reasons TEXT,
+    evidence_assessment TEXT, -- JSON object: shared four-tier assessment contract
     data_source TEXT NOT NULL CHECK(data_source IN ('REAL', 'SIMULATED'))
 );
 
@@ -160,6 +161,7 @@ CREATE TABLE IF NOT EXISTS incident_reports (
     video_evidence TEXT, -- JSON object with sampled-frame/temporal evidence
     video_assessment TEXT,
     video_temporal_signal TEXT,
+    evidence_assessment TEXT, -- JSON object: exact shared four-tier assessment
     data_source TEXT NOT NULL CHECK(data_source IN ('REAL', 'SIMULATED'))
 );
 
@@ -246,6 +248,8 @@ def init_db(db_path: Optional[Path | str] = None) -> List[str]:
                 cursor.execute("ALTER TABLE accident_events ADD COLUMN verdict TEXT;")
             if "persons_near_vehicles_count" not in columns:
                 cursor.execute("ALTER TABLE accident_events ADD COLUMN persons_near_vehicles_count INTEGER DEFAULT 0;")
+            if "evidence_assessment" not in columns:
+                cursor.execute("ALTER TABLE accident_events ADD COLUMN evidence_assessment TEXT;")
 
         # Phase 12: preserve dedicated plate-detection provenance in vehicle reports.
         cursor.execute("PRAGMA table_info(vehicle_reports);")
@@ -283,6 +287,8 @@ def init_db(db_path: Optional[Path | str] = None) -> List[str]:
                 cursor.execute("ALTER TABLE incident_reports ADD COLUMN video_assessment TEXT;")
             if "video_temporal_signal" not in incident_columns:
                 cursor.execute("ALTER TABLE incident_reports ADD COLUMN video_temporal_signal TEXT;")
+            if "evidence_assessment" not in incident_columns:
+                cursor.execute("ALTER TABLE incident_reports ADD COLUMN evidence_assessment TEXT;")
 
         # Additive backward-compatible migration for hospital records. Source-derived
         # classification columns are preserved across save/load and older rows stay.
@@ -435,6 +441,8 @@ def save_accident_event(event: Any, db_path: Optional[Path | str] = None) -> str
 
     data = event.model_dump() if hasattr(event, "model_dump") else dict(event)
     ts_str = data["timestamp"].isoformat() if hasattr(data["timestamp"], "isoformat") else str(data["timestamp"])
+    assessment = data.get("evidence_assessment")
+    assessment_json = json.dumps(assessment, default=str, sort_keys=True) if assessment is not None else None
 
     with db_session(target_path) as conn:
         cursor = conn.cursor()
@@ -443,8 +451,8 @@ def save_accident_event(event: Any, db_path: Optional[Path | str] = None) -> str
                 event_id, timestamp, location_name, latitude, longitude,
                 severity, vehicles_involved, casualties_estimated, status,
                 confidence, method, score, verdict, persons_near_vehicles_count,
-                reasons, data_source
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                reasons, evidence_assessment, data_source
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
             (
                 data["event_id"],
                 ts_str,
@@ -461,6 +469,7 @@ def save_accident_event(event: Any, db_path: Optional[Path | str] = None) -> str
                 data.get("verdict"),
                 data.get("persons_near_vehicles_count", 0),
                 data.get("reasons"),
+                assessment_json,
                 data["data_source"],
             ),
         )
@@ -541,6 +550,8 @@ def save_incident_report(report: Any, db_path: Optional[Path | str] = None) -> s
     disagreements_json = json.dumps(data.get("disagreements", []))
     video_evidence = data.get("video_evidence")
     video_evidence_json = json.dumps(video_evidence) if video_evidence is not None else None
+    assessment = data.get("evidence_assessment")
+    assessment_json = json.dumps(assessment, default=str, sort_keys=True) if assessment is not None else None
 
     with db_session(target_path) as conn:
         cursor = conn.cursor()
@@ -552,8 +563,8 @@ def save_incident_report(report: Any, db_path: Optional[Path | str] = None) -> s
                 people_count_disagreement, hazards, hazards_source, injuries,
                 injuries_source, urgency, urgency_source, summary_text,
                 disagreements, video_evidence, video_assessment,
-                video_temporal_signal, data_source
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                video_temporal_signal, evidence_assessment, data_source
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
             (
                 data["report_id"],
                 data.get("image_name"),
@@ -580,6 +591,7 @@ def save_incident_report(report: Any, db_path: Optional[Path | str] = None) -> s
                 video_evidence_json,
                 data.get("video_assessment"),
                 data.get("video_temporal_signal"),
+                assessment_json,
                 data["data_source"],
             ),
         )

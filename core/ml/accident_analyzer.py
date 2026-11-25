@@ -30,6 +30,7 @@ from torchvision.models import ResNet18_Weights, resnet18
 
 from core.cv.detector import detect
 from core.ml.accident_features import extract_accident_features
+from core.ml.evidence_assessment import build_accident_assessment
 from core.schemas import AccidentEvent, Detection
 from db.database import save_accident_event
 
@@ -155,6 +156,9 @@ def analyze(
     longitude: float = 77.5946,
     conf_threshold: float = 0.5,
     save_to_db: bool = True,
+    media_type: str = "image",
+    temporal: Optional[dict] = None,
+    human_verified_impact: Optional[dict] = None,
 ) -> AccidentEvent:
     """Analyze an image using the trained accident classifier and object detector.
 
@@ -199,6 +203,21 @@ def analyze(
     ]
     reasons_str = "; ".join(explanation_parts)
 
+    # The classifier verdict stays a separate diagnostic field. The shared
+    # four-tier assessment is the authoritative evidence result for all tabs.
+    assessment = build_accident_assessment(
+        model_verdict=verdict,
+        model_score=prob,
+        media_type=media_type,
+        features=features,
+        temporal=temporal,
+        human_verified_impact=human_verified_impact,
+    )
+    reasons_str += (
+        f"; Four-tier evidence assessment: {assessment.assessment_category}; "
+        f"human review required: yes"
+    )
+
     stem = path_obj.stem
     event_id = f"acc-{stem}-{uuid.uuid4().hex[:6]}"
     now_utc = datetime.now(timezone.utc)
@@ -220,6 +239,7 @@ def analyze(
         verdict=verdict,
         persons_near_vehicles_count=persons_near_count,
         reasons=reasons_str,
+        evidence_assessment=assessment,
         data_source="REAL",
     )
 

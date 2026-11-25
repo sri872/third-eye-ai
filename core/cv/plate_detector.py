@@ -15,7 +15,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 import math
 import re
-from typing import Optional, Sequence, Tuple
+from typing import ClassVar, Optional, Sequence, Tuple
 
 import cv2
 import numpy as np
@@ -33,6 +33,16 @@ _MAX_CANDIDATES = 4
 _BRIGHT_PIXEL_MIN = 235
 _PLATE_BORDER_PAD = 2
 _OCR_FALLBACK_PAD = 8
+
+# Explicit geometry-only association states. The no-candidate status matches the
+# string already used by the UI and VehicleReport schemas.
+ASSOCIATED = "ASSOCIATED"
+AMBIGUOUS = "AMBIGUOUS"
+UNASSOCIATED = "UNASSOCIATED"
+NO_PLATE_REGION = "NO PLATE REGION DETECTED"
+NO_CANDIDATES = NO_PLATE_REGION
+_ASSOCIATION_MARGIN = 0.15
+_MIN_CONTAINMENT = 0.5
 
 
 @dataclass(frozen=True)
@@ -158,6 +168,169 @@ def _map_to_original(local: BBox, original: Optional[BBox]) -> BBox:
         min(max(original[1] + local[1], original[1]), original[3]),
         min(max(original[0] + local[2], original[0]), original[2]),
         min(max(original[1] + local[3], original[1]), original[3]),
+    )
+
+
+@dataclass(frozen=True)
+class PlateAssociation:
+    """Geometry-only decision about which plate region belongs to a vehicle.
+
+    ``region`` is set only for an unambiguous ASSOCIATED result; AMBIGUOUS and
+    UNASSOCIATED never auto-select a candidate. ``candidates`` keeps the plausible
+    regions for audit, and ``reason`` explains the decision without inventing
+    confidence or reading plate text.
+    """
+
+    status: str
+    region: Optional[PlateRegion] = None
+    reason: str = ""
+    candidates: Tuple[PlateRegion, ...] = ()
+
+    ASSOCIATED: ClassVar[str] = ASSOCIATED
+    AMBIGUOUS: ClassVar[str] = AMBIGUOUS
+    UNASSOCIATED: ClassVar[str] = UNASSOCIATED
+    NO_PLATE_REGION: ClassVar[str] = NO_PLATE_REGION
+
+    @property
+    def bbox(self) -> Optional[BBox]:
+        """Original-image bbox of the selected region, if one was selected."""
+        return self.region.bbox_original if self.region is not None else None
+
+
+def _overlap_area(a: BBox, b: BBox) -> int:
+    x0, y0 = max(a[0], b[0]), max(a[1], b[1])
+    x1, y1 = min(a[2], b[2]), min(a[3], b[3])
+    if x1 <= x0 or y1 <= y0:
+        return 0
+    return (x1 - x0) * (y1 - y0)
+
+
+def _association_score(candidate: BBox, vehicle: BBox) -> tuple[float, float]:
+    """Score containment and centredness in image coordinates only."""
+    candidate_area = max((candidate[2] - candidate[0]) * (candidate[3] - candidate[1]), 1)
+    containment = min(_overlap_area(candidate, vehicle) / candidate_area, 1.0)
+    cx = (candidate[0] + candidate[2]) / 2.0
+    cy = (candidate[1] + candidate[3]) / 2.0
+    vx = (vehicle[0] + vehicle[2]) / 2.0
+    vy = (vehicle[1] + vehicle[3]) / 2.0
+    half_w = max((vehicle[2] - vehicle[0]) / 2.0, 1.0)
+    half_h = max((vehicle[3] - vehicle[1]) / 2.0, 1.0)
+    distance = min(math.hypot((cx - vx) / half_w, (cy - vy) / half_h), 1.0)
+    centeredness = 1.0 - distance
+    return containment * (0.5 + 0.5 * centeredness), containment
+
+
+def associate_plate_regions(
+    regions: Sequence[PlateRegion] | None,
+    vehicle_bbox: Sequence[float] | None,
+    image_width: int,
+    image_height: int,
+) -> PlateAssociation:
+    """Associate candidate plate regions with one vehicle using geometry only.
+
+    A region is plausible when its centre lies inside the vehicle box and at
+    least half of it is contained by that box. Containment and centredness rank
+    plausible regions; if two of them are near-ties, the result is AMBIGUOUS and
+    no region is selected. Text, OCR confidence and detector scores are never
+    consulted, so a plate is never inferred from text alone.
+    """
+    candidates = tuple(regions or ())
+    if not candidates:
+        return PlateAssociation(
+            status=NO_PLATE_REGION,
+            reason="No candidate plate regions supplied.",
+        )
+
+    vehicle = _clamp_bbox(vehicle_bbox) if vehicle_bbox is not None else None
+    if vehicle is None:
+        return PlateAssociation(
+            status=UNASSOCIATED,
+            reason="Invalid vehicle bounding box.",
+            candidates=candidates,
+        )
+    try:
+        width, height = int(image_width), int(image_height)
+    except (TypeError, ValueError):
+        return PlateAssociation(
+            status=UNASSOCIATED,
+            reason="Invalid image dimensions.",
+            candidates=candidates,
+        )
+    if width <= 0 or height <= 0:
+        return PlateAssociation(
+            status=UNASSOCIATED,
+            reason="Invalid image dimensions.",
+            candidates=candidates,
+        )
+
+    bounds = (0, 0, width, height)
+    vehicle = (
+        max(vehicle[0], 0),
+        max(vehicle[1], 0),
+        min(vehicle[2], width),
+        min(vehicle[3], height),
+    )
+    if vehicle[0] >= vehicle[2] or vehicle[1] >= vehicle[3]:
+        return PlateAssociation(
+            status=UNASSOCIATED,
+            reason="Vehicle bounding box is outside the image.",
+            candidates=candidates,
+        )
+
+    plausible: list[tuple[float, BBox, PlateRegion]] = []
+    for region in candidates:
+        local_box = _clamp_bbox(region.bbox_original) or _clamp_bbox(region.bbox_local)
+        if local_box is None:
+            continue
+        box = (
+            max(local_box[0], 0),
+            max(local_box[1], 0),
+            min(local_box[2], width),
+            min(local_box[3], height),
+        )
+        if box[0] >= box[2] or box[1] >= box[3]:
+            continue
+        center_x = (box[0] + box[2]) / 2.0
+        center_y = (box[1] + box[3]) / 2.0
+        if not (
+            vehicle[0] <= center_x <= vehicle[2]
+            and vehicle[1] <= center_y <= vehicle[3]
+        ):
+            continue
+        score, containment = _association_score(box, vehicle)
+        if containment < _MIN_CONTAINMENT:
+            continue
+        plausible.append((score, box, region))
+
+    if not plausible:
+        return PlateAssociation(
+            status=UNASSOCIATED,
+            reason="No plate region centre and majority area lie inside the vehicle.",
+            candidates=candidates,
+        )
+
+    plausible.sort(key=lambda item: (-item[0], item[1]))
+    best_score, _, best_region = plausible[0]
+    plausible_regions = tuple(item[2] for item in plausible)
+
+    if len(plausible) > 1:
+        second_score = plausible[1][0]
+        if best_score - second_score < _ASSOCIATION_MARGIN:
+            return PlateAssociation(
+                status=AMBIGUOUS,
+                region=None,
+                reason=(
+                    "Multiple plate regions overlap the vehicle with no clear "
+                    "geometry winner; none was auto-selected."
+                ),
+                candidates=plausible_regions,
+            )
+
+    return PlateAssociation(
+        status=ASSOCIATED,
+        region=best_region,
+        reason="Single best geometry match inside the vehicle bounding box.",
+        candidates=plausible_regions,
     )
 
 

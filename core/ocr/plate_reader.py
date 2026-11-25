@@ -4,13 +4,22 @@ Extracts text candidates from plate regions or legacy whole-vehicle crops using
 EasyOCR with lazy loading. Normalizes plate text (uppercase, alphanumeric only)
 without fabricating characters. Returns real OCR confidence or (None, None) when
 unreadable, while preserving the exact raw OCR text and its status.
+
+A small deterministic set of preprocessing variants is evaluated so a slightly
+noisy crop does not lose a real read. Results are memoized per reader/image so
+callers that inspect both the processed and the raw crop never pay for the same
+OCR inference twice. Format validity is only a ranking hint: verification remains
+the UI's ``>= 0.70`` real-OCR-confidence gate.
 """
 
+from collections import OrderedDict
 from dataclasses import dataclass
+import hashlib
 import logging
 from pathlib import Path
 import re
 from typing import Optional, Tuple
+import weakref
 
 import cv2
 import easyocr
@@ -23,8 +32,19 @@ PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
 MODEL_DIR = PROJECT_ROOT / "models" / "easyocr"
 USER_NETWORK_DIR = MODEL_DIR / "user_network"
 
+# Verification threshold used by the UI. Kept here so module-level checks agree
+# with the UI; a format-valid string is never verified on its own.
+PLATE_TRUST_THRESHOLD = 0.7
+
 _READER: Optional[easyocr.Reader] = None
 _DEVICE: str = "cpu"
+
+# (reader -> OrderedDict[image sha256, raw EasyOCR results]).
+# Weak keys prevent stale mock readers from leaking between tests and avoid
+# re-running EasyOCR on the same pixels (the UI evaluates variants on both the
+# processed and the raw crop).
+_OCR_RESULT_CACHE: "weakref.WeakKeyDictionary[object, OrderedDict]" = weakref.WeakKeyDictionary()
+_OCR_CACHE_MAX_ENTRIES = 64
 
 
 @dataclass(frozen=True)
@@ -36,6 +56,9 @@ class PlateOCREvidence:
     actually emitted, even when normalization rejects it. This lets the UI show
     recognized text honestly without presenting it as a verified registration.
     Verification itself stays in the UI at PLATE_TRUST_THRESHOLD = 0.7.
+
+    ``format_valid`` and ``preprocessing_variant`` are appended with defaults so
+    older callers constructing this dataclass positionally keep working.
     """
 
     plate: Optional[str] = None
@@ -48,6 +71,8 @@ class PlateOCREvidence:
     plate_bbox: Optional[Tuple[int, int, int, int]] = None
     plate_detector: str = "NONE"
     ocr_status: str = "NOT RUN"
+    format_valid: bool = False
+    preprocessing_variant: Optional[str] = None
 
 
 def get_ocr_reader() -> Tuple[easyocr.Reader, str]:
@@ -60,7 +85,7 @@ def get_ocr_reader() -> Tuple[easyocr.Reader, str]:
 
         _DEVICE = "cpu"
         print(f"[Third-Eye OCR] Initializing EasyOCR Reader on device: {_DEVICE.upper()}")
-        
+
         _READER = easyocr.Reader(
             ["en"],
             gpu=False,
@@ -71,6 +96,20 @@ def get_ocr_reader() -> Tuple[easyocr.Reader, str]:
         )
 
     return _READER, _DEVICE
+
+
+def is_verified_plate_confidence(confidence: Optional[float]) -> bool:
+    """Apply the same ``>= 0.70`` real-confidence gate used by the UI.
+
+    Registration-format validity is deliberately ignored here: a beautifully
+    formatted read at 0.69 is still unverified.
+    """
+    if confidence is None:
+        return False
+    try:
+        return float(confidence) >= PLATE_TRUST_THRESHOLD
+    except (TypeError, ValueError):
+        return False
 
 
 def normalize_plate_text(raw_text: str) -> Optional[str]:
@@ -85,6 +124,23 @@ def normalize_plate_text(raw_text: str) -> Optional[str]:
     if len(cleaned) < 3:
         return None
     return cleaned
+
+
+def is_valid_indian_plate_format(candidate: Optional[str]) -> bool:
+    """Validate whether a candidate matches Indian registration plate patterns.
+
+    This is a *ranking hint only*, never evidence of verification:
+    - Standard: 2 state letters + 1-2 district digits + 1-3 series letters + 4 digits.
+    - Bharat series (BH): 2 year digits + BH + 4 digits + 1-2 series letters.
+    """
+    if not candidate or not isinstance(candidate, str):
+        return False
+    norm = candidate.upper().strip()
+    if re.match(r"^[A-Z]{2}[0-9]{1,2}[A-Z]{1,3}[0-9]{4}$", norm):
+        return True
+    if re.match(r"^[0-9]{2}BH[0-9]{4}[A-Z]{1,2}$", norm):
+        return True
+    return False
 
 
 def preprocess_plate_region(region: np.ndarray) -> np.ndarray:
@@ -118,11 +174,109 @@ def preprocess_plate_region(region: np.ndarray) -> np.ndarray:
     return cv2.cvtColor(resized, cv2.COLOR_GRAY2BGR)
 
 
-def read_plate_evidence(crop: np.ndarray) -> PlateOCREvidence:
+def generate_plate_preprocessing_variants(region: np.ndarray) -> dict[str, np.ndarray]:
+    """Build a small, deterministic set of non-fabricating OCR variants.
+
+    Order is stable so ranking stays reproducible:
+    ``raw`` (untouched), ``padded`` (edge replication), ``contrast_enhanced``
+    (the existing mild CLAHE pipeline), ``sharpened`` (light unsharp mask) and
+    ``deskew`` only when a small, reliable rotation is detected. No image is
+    binarised and no character is added, removed or corrected.
+    """
+    if region is None or not isinstance(region, np.ndarray) or region.size == 0:
+        return {}
+
+    variants: dict[str, np.ndarray] = {"raw": region}
+
+    height, width = region.shape[:2]
+    pad_y = max(4, int(round(height * 0.1)))
+    pad_x = max(6, int(round(width * 0.1)))
+    variants["padded"] = cv2.copyMakeBorder(
+        region, pad_y, pad_y, pad_x, pad_x, cv2.BORDER_REPLICATE
+    )
+
+    try:
+        variants["contrast_enhanced"] = preprocess_plate_region(region)
+    except Exception as exc:
+        logger.warning("Contrast-enhanced plate variant unavailable: %s", exc)
+
+    try:
+        blur = cv2.GaussianBlur(region, (0, 0), 3)
+        variants["sharpened"] = cv2.addWeighted(region, 1.3, blur, -0.3, 0)
+    except Exception as exc:
+        logger.warning("Sharpened plate variant unavailable: %s", exc)
+
+    # Deskew is only safe for a small, well-supported angle; large rotations can
+    # clip characters, so they are left to the raw/padded variants.
+    try:
+        gray = (
+            cv2.cvtColor(region, cv2.COLOR_BGR2GRAY)
+            if region.ndim == 3 and region.shape[2] >= 3
+            else region
+        )
+        points = cv2.findNonZero(cv2.Canny(gray, 50, 150))
+        if points is not None and len(points) > 20:
+            angle = cv2.minAreaRect(points)[-1]
+            if angle < -45:
+                angle = -(90 + angle)
+            elif angle > 45:
+                angle = 90 - angle
+            if 0.5 <= abs(angle) <= 15.0:
+                matrix = cv2.getRotationMatrix2D((width // 2, height // 2), angle, 1.0)
+                variants["deskew"] = cv2.warpAffine(
+                    region,
+                    matrix,
+                    (width, height),
+                    flags=cv2.INTER_CUBIC,
+                    borderMode=cv2.BORDER_REPLICATE,
+                )
+    except Exception as exc:
+        logger.warning("Deskew plate variant unavailable: %s", exc)
+
+    return variants
+
+
+def _score_candidate(norm: str, confidence: float) -> tuple[int, float]:
+    """Rank candidates: registration format, then alphanumeric, then partial.
+
+    Within a tier the *real* OCR confidence wins; no confidence is invented.
+    """
+    tier = 2 if is_valid_indian_plate_format(norm) else (
+        1 if re.search(r"[A-Z]", norm) and re.search(r"[0-9]", norm) else 0
+    )
+    return tier, confidence
+
+
+def _readtext_cached(reader, image: np.ndarray):
+    """Run ``readtext`` once per (reader, exact pixels), regardless of variant."""
+    digest = hashlib.sha256(np.ascontiguousarray(image).tobytes()).hexdigest()
+    try:
+        cache = _OCR_RESULT_CACHE.get(reader)
+    except TypeError:
+        # Unhashable reader: fall back to a plain OCR call.
+        return reader.readtext(image)
+    if cache is None:
+        cache = OrderedDict()
+        _OCR_RESULT_CACHE[reader] = cache
+    if digest in cache:
+        cache.move_to_end(digest)
+        return cache[digest]
+    results = reader.readtext(image)
+    cache[digest] = results
+    while len(cache) > _OCR_CACHE_MAX_ENTRIES:
+        cache.popitem(last=False)
+    return results
+
+
+def read_plate_evidence(
+    crop: np.ndarray, evaluate_variants: bool = True
+) -> PlateOCREvidence:
     """Collect real EasyOCR evidence from a plate region without guessing text.
 
-    No confidence threshold is applied here: the goal is to keep the exact
-    recognized text and its real confidence so the UI can decide what is verified.
+    ``evaluate_variants`` controls the deterministic variant drill-down; it has a
+    default so existing single-argument callers and monkeypatches keep working.
+    No confidence threshold is applied here: the exact recognized text and its
+    real confidence are preserved for the UI's 0.70 verification gate.
     Character normalization is unchanged (``normalize_plate_text``).
     """
     if crop is None or crop.size == 0:
@@ -137,53 +291,73 @@ def read_plate_evidence(crop: np.ndarray) -> PlateOCREvidence:
         logger.warning("OCR initialization failed: %s", exc)
         return PlateOCREvidence(ocr_status="OCR INITIALIZATION FAILURE")
 
-    try:
-        results = reader.readtext(crop)
-    except Exception as exc:
-        logger.warning("OCR inference failed on crop: %s", exc)
-        return PlateOCREvidence(ocr_status="OCR INFERENCE FAILURE")
-
-    if not results:
-        return PlateOCREvidence(ocr_status="NO OCR RESULTS")
+    variants = (
+        generate_plate_preprocessing_variants(crop)
+        if evaluate_variants
+        else {"raw": crop}
+    )
+    if not variants:
+        variants = {"raw": crop}
 
     best_plate: Optional[str] = None
     best_plate_conf: Optional[float] = None
     best_raw_text: Optional[str] = None
     best_raw_conf: Optional[float] = None
-    candidate_count = 0
+    best_variant: Optional[str] = None
+    best_score: tuple[int, float] = (-1, -1.0)
+    # Count distinct real reads, not the same text repeated by several variants.
+    seen_candidates: set[tuple[str, float]] = set()
+    had_any_results = False
+    inference_errors = 0
 
-    # EasyOCR results format: [(bbox, text, prob), ...]
-    for _, text, prob in results:
-        if not text:
+    for variant_name, image in variants.items():
+        try:
+            results = _readtext_cached(reader, image)
+        except Exception as exc:
+            logger.warning("OCR inference failed on variant %s: %s", variant_name, exc)
+            inference_errors += 1
             continue
-        candidate_count += 1
-        conf = float(prob)
 
-        # Keep the highest-confidence raw text exactly as EasyOCR emitted it.
-        if best_raw_conf is None or conf > best_raw_conf:
-            best_raw_text = str(text)
-            best_raw_conf = round(conf, 4)
+        if not results:
+            continue
+        had_any_results = True
 
-        norm = normalize_plate_text(str(text))
-        if norm is not None:
-            # Pick highest confidence valid plate candidate; never auto-correct it.
-            # When multiple candidates exist, prefer full registration numbers (having both
-            # letters and digits) over partial 3-letter country prefixes like 'IND'.
-            norm_has_ld = bool(re.search(r"[A-Z]", norm) and re.search(r"[0-9]", norm))
-            best_has_ld = bool(best_plate and re.search(r"[A-Z]", best_plate) and re.search(r"[0-9]", best_plate))
-            if (norm_has_ld and not best_has_ld) or (
-                norm_has_ld == best_has_ld and (best_plate_conf is None or conf > best_plate_conf)
-            ):
+        # EasyOCR results format: [(bbox, text, prob), ...]
+        for _, text, prob in results:
+            if not text:
+                continue
+            conf = float(prob)
+            seen_candidates.add((str(text), conf))
+
+            # Keep the exact highest-confidence text EasyOCR emitted, unrounded.
+            if best_raw_conf is None or conf > best_raw_conf:
+                best_raw_text = str(text)
+                best_raw_conf = conf
+
+            norm = normalize_plate_text(str(text))
+            if norm is None:
+                continue
+            score = _score_candidate(norm, conf)
+            if score > best_score:
+                best_score = score
                 best_plate = norm
-                best_plate_conf = round(conf, 4)
+                best_plate_conf = conf
+                best_variant = variant_name
+
+    if not had_any_results:
+        if inference_errors == len(variants):
+            return PlateOCREvidence(ocr_status="OCR INFERENCE FAILURE")
+        return PlateOCREvidence(ocr_status="NO OCR RESULTS")
 
     return PlateOCREvidence(
         plate=best_plate,
         plate_confidence=best_plate_conf,
         raw_text=best_raw_text,
         raw_confidence=best_raw_conf,
-        candidate_count=candidate_count,
+        candidate_count=len(seen_candidates),
         ocr_status="OK",
+        format_valid=bool(best_plate and is_valid_indian_plate_format(best_plate)),
+        preprocessing_variant=best_variant,
     )
 
 

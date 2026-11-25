@@ -161,7 +161,7 @@ def _upload_real_image_and_get_vehicles(monkeypatch, evidence: PlateOCREvidence)
     import core.cv.plate_detector as plate_detector
     import core.ocr.plate_reader as plate_reader
 
-    from core.cv.plate_detector import PlateRegion
+    from core.cv.plate_detector import ASSOCIATED, PlateAssociation, PlateRegion
 
     region = PlateRegion(
         bbox_local=(0, 0, 120, 48),
@@ -173,6 +173,13 @@ def _upload_real_image_and_get_vehicles(monkeypatch, evidence: PlateOCREvidence)
     )
     monkeypatch.setattr(
         plate_detector, "detect_plate_regions", lambda crop, bbox=None, **kwargs: (region,)
+    )
+    monkeypatch.setattr(
+        plate_detector,
+        "associate_plate_regions",
+        lambda regions, bbox, width, height: PlateAssociation(
+            status=ASSOCIATED, region=region, candidates=tuple(regions)
+        ),
     )
     monkeypatch.setattr(plate_reader, "read_plate_evidence", lambda crop: evidence)
     at = _run_app()
@@ -192,6 +199,7 @@ def test_vehicles_tab_shows_readable_verified_plate(monkeypatch) -> None:
         raw_text="KA01AB1234",
         raw_confidence=0.94,
         candidate_count=1,
+        format_valid=True,
     )
     table = _upload_real_image_and_get_vehicles(monkeypatch, evidence)
     assert table["Plate"].iloc[0] == "KA01AB1234"
@@ -219,6 +227,68 @@ def test_vehicles_tab_shows_low_confidence_plate_as_not_readable(monkeypatch) ->
     assert table["OCR confidence"].iloc[0] == "0.55"
     assert table["Unverified OCR candidate"].iloc[0] == "CAN09G (0.55)"
     assert table["Raw OCR text (unverified)"].iloc[0] == "can09g (0.55)"
+
+
+def test_vehicles_tab_rejects_high_confidence_invalid_format(monkeypatch) -> None:
+    """A high-confidence partial read is raw evidence, never a verified plate."""
+    evidence = PlateOCREvidence(
+        plate="IND",
+        plate_confidence=0.95,
+        raw_text="IND",
+        raw_confidence=0.95,
+        candidate_count=1,
+        format_valid=False,
+    )
+    table = _upload_real_image_and_get_vehicles(monkeypatch, evidence)
+    assert table["Plate"].iloc[0] == "NOT READABLE (UNVERIFIED)"
+    assert table["Plate status"].iloc[0] == "NOT READABLE (UNVERIFIED)"
+    assert table["Plate detection status"].iloc[0] == (
+        "PLATE REGION DETECTED — UNREADABLE (INVALID FORMAT)"
+    )
+    assert table["Unverified OCR candidate"].iloc[0] == "IND (0.95)"
+    assert table["Raw OCR text (unverified)"].iloc[0] == "IND (0.95)"
+
+
+def test_vehicles_tab_ambiguous_association_skips_ocr(monkeypatch) -> None:
+    """Two plausible plate regions must not auto-select one for OCR."""
+    import core.cv.plate_detector as plate_detector
+    import core.ocr.plate_reader as plate_reader
+
+    from core.cv.plate_detector import AMBIGUOUS, PlateAssociation, PlateRegion
+
+    region = PlateRegion((0, 0, 120, 48), (10, 20, 130, 68), 0.75, 8, 2.5, 0.2)
+    other = PlateRegion((0, 60, 120, 100), (10, 80, 130, 120), 0.74, 8, 3.0, 0.2)
+    monkeypatch.setattr(
+        plate_detector,
+        "detect_plate_regions",
+        lambda crop, bbox=None, **kwargs: (region, other),
+    )
+    monkeypatch.setattr(
+        plate_detector,
+        "associate_plate_regions",
+        lambda regions, bbox, width, height: PlateAssociation(
+            status=AMBIGUOUS,
+            candidates=tuple(regions),
+            reason="two near-equal plausible regions",
+        ),
+    )
+
+    def _forbidden_ocr(*args, **kwargs):
+        raise AssertionError("Ambiguous plate association must skip OCR")
+
+    monkeypatch.setattr(plate_reader, "read_plate_evidence", _forbidden_ocr)
+    at = _run_app()
+    at.sidebar.file_uploader[0].upload(
+        REAL_IMAGE.name, REAL_IMAGE.read_bytes(), "image/jpeg"
+    ).run()
+    assert not at.exception, [item.value for item in at.exception]
+    table = _vehicles_table(at)
+    assert table["Plate detection status"].iloc[0] == (
+        "PLATE REGION DETECTED — AMBIGUOUS ASSOCIATION"
+    )
+    assert table["OCR status"].iloc[0].startswith("NOT RUN (AMBIGUOUS")
+    assert table["Plate bbox (source px)"].iloc[0] == "not determined"
+    assert table["Plate"].iloc[0] == "NOT READABLE (UNVERIFIED)"
 
 
 def test_vehicles_tab_shows_raw_text_without_inventing_a_plate(monkeypatch) -> None:

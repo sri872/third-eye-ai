@@ -7,6 +7,8 @@ Generates human-readable, auditable incident narratives from:
 
 Rules:
 - Hedged wording matching verdict (LIKELY ACCIDENT / UNCERTAIN / NO ACCIDENT SIGNAL).
+- A low/no-signal result is insufficient positive evidence, never normal traffic,
+  road safety, or proof that no accident occurred.
 - Plates mentioned ONLY if readable; tagged 'unverified' when OCR confidence is below 0.70.
 - Never invents facts or details. Unknowns stay 'not determined'.
 - Explicitly lists data sources and physical limitations.
@@ -59,17 +61,21 @@ def generate_incident_summary(
     elif media_type == "image":
         # Out-of-domain still: the score is a ranking signal, not proof of safety.
         verdict_text = (
-            f"[INCIDENT ASSESSMENT: NO ACCIDENT SIGNAL] (Severity: {accident_event.severity.upper()})\n"
-            f"The dashcam-trained frame classifier returned no accident signal "
-            f"(score: {score_str}). This uploaded still image is outside the model's "
-            f"training domain, so normal traffic cannot be confirmed; human review "
-            f"is required."
+            "[INCIDENT ASSESSMENT: NOT DETERMINED (out-of-domain still image)] "
+            f"(Severity: {accident_event.severity.upper()})\n"
+            f"Raw classifier verdict (separate diagnostic field): NO ACCIDENT SIGNAL; "
+            f"uncalibrated score: {score_str}. This uploaded still image is outside "
+            "the model's training domain, so normal traffic cannot be confirmed; "
+            "human review is required."
         )
     else:  # NO ACCIDENT SIGNAL on in-domain video frames
         verdict_text = (
-            f"[INCIDENT ASSESSMENT: NO ACCIDENT SIGNAL] (Severity: {accident_event.severity.upper()})\n"
-            f"Visual analysis indicates normal traffic flow; no collision signal detected "
-            f"(classifier score: {score_str})."
+            "[INCIDENT ASSESSMENT: NO CLEAR ACCIDENT EVIDENCE DETECTED] "
+            f"(Severity: {accident_event.severity.upper()})\n"
+            f"Raw classifier verdict (separate diagnostic field): NO ACCIDENT SIGNAL; "
+            f"uncalibrated score: {score_str}. Insufficient positive accident evidence "
+            "was found in the analyzed frames. This is not a finding of normal traffic "
+            "flow, road safety, or no accident; human review remains required."
         )
 
     # 2. Vehicle Evidence

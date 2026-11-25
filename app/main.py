@@ -15,7 +15,7 @@ import sqlite3
 import sys
 import tempfile
 import uuid
-from dataclasses import replace
+from dataclasses import asdict, replace
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
@@ -41,6 +41,8 @@ from app.dispatch_ui import (
     SIMULATION_NOTICE,
     alternative_rows,
     ambulance_selection_reason,
+    assessment_dispatch_notice,
+    assessment_dispatch_rows,
     build_dispatch_map,
     build_google_maps_url,
     configured_summary_path,
@@ -80,12 +82,20 @@ from app.hospital_ui import (
 )
 from app.video_analysis import analyze_frame_scores, build_video_assessment
 from app.video_utils import sample_video_frames
-from core.cv.detector import detect, detect_with_orientation, get_target_device
+from core.cv.detector import (
+    detect,
+    detect_with_diagnostics,
+    detect_with_orientation,
+    get_target_device,
+)
+from core.cv.scene_analysis import analyze_scene_environment, build_scene_summary
 from core.cv.plate_detector import (
     OCR_FALLBACK_METHOD,
+    associate_plate_regions,
     detect_plate_regions_with_ocr_fallback,
 )
 from core.cv.vehicle_attributes import crop_vehicle, dominant_color, get_vehicle_type
+from core.cv.vehicle_report import plate_detection_status_for_association
 from core.ml.accident_analyzer import (
     classify_frame_probability,
     compute_persons_near_vehicles,
@@ -94,13 +104,15 @@ from core.ml.accident_analyzer import (
     load_model_and_extractor,
 )
 from core.ml.accident_features import extract_accident_features
+from core.ml.evidence_assessment import build_accident_assessment
 from core.nlp.caller_extraction import extract_caller_info
 from core.nlp.fusion import fuse_incident_evidence
 from core.nlp.incident_text import generate_incident_summary
 from core.nlp.occupant_report import build_occupant_reports
 from core.ocr.plate_reader import (
+    PLATE_TRUST_THRESHOLD,
     PlateOCREvidence,
-    preprocess_plate_region,
+    is_verified_plate_confidence,
     read_plate_evidence,
 )
 from core.hospitals.catalog import HospitalCatalog
@@ -121,7 +133,6 @@ SUMMARY_PATH = configured_summary_path()
 UPLOAD_TYPES = ["jpg", "jpeg", "png", "mp4", "mov", "avi"]
 VIDEO_EXTENSIONS = {".mp4", ".mov", ".avi"}
 NO_CALL_LABEL = "No call (vision only)"
-PLATE_TRUST_THRESHOLD = 0.7
 NOT_READABLE = "NOT READABLE (UNVERIFIED)"
 PLATE_DETECTED = "PLATE REGION DETECTED"
 NO_PLATE_REGION = "NO PLATE REGION DETECTED"
@@ -310,6 +321,7 @@ def _render_dispatch_tab(
     hazards: Any,
     report: dict[str, Any] | None = None,
     selected_location: dict[str, Any] | None = None,
+    assessment: dict[str, Any] | None = None,
 ) -> None:
     st.subheader("Dispatch: simulated demo placement, real OSM facilities")
     st.warning(SIMULATION_NOTICE)
@@ -318,6 +330,12 @@ def _render_dispatch_tab(
         "This tab ranks records from the cached dispatch summary. It does not contact "
         "ambulances, verify vehicle GPS, check live traffic, or verify hospital capability."
     )
+
+    # The exact same structured assessment used by Accident Check and Tab 4 is
+    # displayed here as context only. Dispatch never recalculates its category.
+    st.markdown("### Shared accident evidence assessment (from Accident Check)")
+    st.caption(assessment_dispatch_notice(assessment))
+    st.table(assessment_dispatch_rows(assessment))
 
     demo_scenarios = scenarios(summary)
     disclaimers = summary.get("disclaimers")
@@ -675,8 +693,12 @@ def _build_vehicle_reports(
             crop_y0 + crop.shape[0],
         )
         regions = detect_plate_regions_with_ocr_fallback(crop, vehicle_bbox)
-        if regions:
-            region = regions[0]
+        association = associate_plate_regions(
+            regions, vehicle_bbox, bgr.shape[1], bgr.shape[0]
+        )
+        association_status = plate_detection_status_for_association(association)
+        region = association.region
+        if region is not None:
             lx0, ly0, lx1, ly1 = region.bbox_local
             plate_crop = crop[ly0:ly1, lx0:lx1]
             if region.method == OCR_FALLBACK_METHOD:
@@ -689,33 +711,36 @@ def _build_vehicle_reports(
                     f"{region.method} (detector score {region.heuristic_score:.2f})"
                 )
             try:
-                processed = preprocess_plate_region(plate_crop)
-                ev_proc = read_plate_evidence(processed)
-                ev_raw = read_plate_evidence(plate_crop)
-                ev_best = (
-                    ev_raw
-                    if (ev_raw.plate and (not ev_proc.plate or (ev_raw.plate_confidence or 0) > (ev_proc.plate_confidence or 0)))
-                    else ev_proc
-                )
+                # Variant ranking lives in read_plate_evidence; it preserves the
+                # exact raw read while preferring format-valid candidates.
+                evidence = read_plate_evidence(plate_crop)
                 evidence = replace(
-                    ev_best,
-                    plate_detection_status=PLATE_DETECTED,
+                    evidence,
+                    plate_detection_status=association_status,
                     plate_bbox=region.bbox_original,
                     plate_detector=detector_label,
                 )
             except Exception:
                 evidence = replace(
                     PlateOCREvidence(),
-                    plate_detection_status=PLATE_DETECTED,
+                    plate_detection_status=association_status,
                     plate_bbox=region.bbox_original,
                     plate_detector=region.method,
-                    ocr_status="PLATE PREPROCESSING FAILURE",
+                    ocr_status="PLATE OCR FAILURE",
                 )
         else:
+            # AMBIGUOUS / UNASSOCIATED / NO PLATE REGION never auto-select a box.
+            ocr_status = (
+                "NOT RUN (NO PLATE REGION)"
+                if association.status == NO_PLATE_REGION
+                else f"NOT RUN ({association.status})"
+            )
+            if association.status != NO_PLATE_REGION and association.reason:
+                ocr_status = f"{ocr_status}: {association.reason}"
             evidence = replace(
                 PlateOCREvidence(),
-                plate_detection_status=NO_PLATE_REGION,
-                ocr_status="NOT RUN (NO PLATE REGION)",
+                plate_detection_status=association_status,
+                ocr_status=ocr_status,
             )
         vehicle_id = f"veh-{stem}-{vehicle_index:02d}-{uuid.uuid4().hex[:4]}"
         ocr_evidence[vehicle_id] = evidence
@@ -748,6 +773,7 @@ def _vision_result(
     media_type: str,
     media_sha256: str,
     orientation: dict[str, Any] | None = None,
+    temporal: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     raw_model_verdict, raw_model_severity, model_status = determine_verdict(score)
     # The classifier was trained on dashcam video frames, not standalone photos.
@@ -762,6 +788,25 @@ def _vision_result(
     features = extract_accident_features(
         detections, image_width=image.width, image_height=image.height
     )
+    scene = analyze_scene_environment(image, detections, media_type=media_type)
+    scene_summary = build_scene_summary(
+        detections,
+        image.width,
+        image.height,
+        media_type=media_type,
+        suppression=(orientation or {}).get("duplicate_suppression"),
+    )
+    # One authoritative four-tier assessment is built here and reused verbatim by
+    # Accident Check, Incident Report and Dispatch. The raw classifier verdict is
+    # intentionally kept separate in the AccidentEvent/IncidentReport fields.
+    assessment = build_accident_assessment(
+        model_verdict=raw_model_verdict,
+        model_score=score,
+        media_type=media_type,
+        features=features,
+        temporal=temporal,
+    )
+    assessment_payload = assessment.as_dict()
     reasons = (
         f"Media type: {media_type}; "
         f"Raw classifier score: {score:.4f} -> Model output: {raw_model_verdict}; "
@@ -788,6 +833,7 @@ def _vision_result(
         verdict=verdict,
         persons_near_vehicles_count=occupant_counts["persons_near_vehicles_count"],
         reasons=reasons,
+        evidence_assessment=assessment,
         data_source="REAL",
     )
     return {
@@ -813,6 +859,9 @@ def _vision_result(
             "reason": "video frame orientation retained",
         },
         "features": features,
+        "scene_analysis": asdict(scene),
+        "scene_summary": scene_summary,
+        "evidence_assessment": assessment_payload,
         "ocr_evidence": ocr_evidence,
         "vehicle_reports": vehicle_reports,
         "occupant_reports": occupant_reports,
@@ -831,7 +880,9 @@ def _process_image(
         source_image = opened.convert("RGB")
     # Real photos can be stored physically rotated without an EXIF tag. The
     # detector retries quarter turns only when the source has zero detections.
-    detections, image, orientation = detect_with_orientation(source_image)
+    detections, image, orientation = detect_with_orientation(
+        source_image, include_suppression_diagnostics=True
+    )
     score = classify_frame_probability(image)
     return _vision_result(
         image,
@@ -869,9 +920,12 @@ def _process_video(
 
         frame_rows: list[dict[str, Any]] = []
         detections_by_frame: list[list[Detection]] = []
+        suppression_by_frame: list[dict[str, Any]] = []
         for position, frame in enumerate(sampled.frames, start=1):
-            detections = detect(frame.image)
+            diagnostics = detect_with_diagnostics(frame.image)
+            detections = list(diagnostics.detections)
             detections_by_frame.append(detections)
+            suppression_by_frame.append(diagnostics.as_dict())
             score = classify_frame_probability(frame.image)
             verdict, severity, status = determine_verdict(score)
             frame_rows.append(
@@ -910,6 +964,13 @@ def _process_video(
             location,
             media_type="video",
             media_sha256=hashlib.sha256(data).hexdigest(),
+            orientation={
+                "rotation_applied": False,
+                "rotation_degrees": 0,
+                "reason": "sampled video frame orientation retained",
+                "duplicate_suppression": suppression_by_frame[top_position],
+            },
+            temporal=temporal,
         )
         result.update(
             {
@@ -1062,8 +1123,22 @@ if result is not None:
             vision_only_text += (
                 "\n\nREAL VIDEO FRAME/TEMPORAL EVIDENCE (Source: REAL):\n"
                 + result["video_assessment"]
-                + "\nTemporal evidence is explanatory and never overrides the trained "
-                "model verdict. No accident is confirmed from sampled frames alone."
+                + "\nTemporal evidence is explanatory and never overrides the shared "
+                "four-tier assessment. No accident is confirmed from sampled frames alone."
+            )
+        assessment = result.get("evidence_assessment") or {}
+        if assessment:
+            vision_only_text += (
+                "\n\nFOUR-TIER ACCIDENT EVIDENCE ASSESSMENT (exact shared contract):\n"
+                f"  - Assessment category: [{_text(assessment.get('assessment_category'))}]\n"
+                "  - Human review: MANDATORY for every category.\n"
+                f"  - Raw model verdict (separate diagnostic field): "
+                f"{_text(assessment.get('model_verdict'))}\n"
+                f"  - Uncalibrated classifier score (not calibrated confidence): "
+                f"{_text(assessment.get('model_score'))}\n"
+                f"  - Reasoning: {_text(assessment.get('reasoning'))}\n"
+                "  - Safety rule: NO CLEAR ACCIDENT EVIDENCE DETECTED means insufficient "
+                "positive evidence in this sample; it never means road safe or no accident."
             )
         report = {
             "report_id": f"vision-only-{event.event_id}",
@@ -1106,6 +1181,8 @@ if result is not None:
             "vision_score": result["score"],
             "source_disagreement": False,
             "source_disagreements": [],
+            # Exact shared assessment; no recalculation in the report layer.
+            "evidence_assessment": result["evidence_assessment"],
         }
         needs = {"urgency": None, "hazards": [], "injuries": []}
     else:
@@ -1182,6 +1259,69 @@ with scene_tab:
                 "classifier and OCR use the displayed corrected orientation. The "
                 "original file and its bytes were not modified."
             )
+        scene_info = result.get("scene_analysis") or {}
+        scene_summary = result.get("scene_summary") or {}
+        st.markdown("**Conservative scene context (REAL pixels and detector boxes):**")
+        _badge("REAL")
+        tagged(
+            "Scene description",
+            _text(scene_info.get("scene_description")),
+            "REAL",
+        )
+        tagged(
+            "Environment classification",
+            _text(scene_info.get("environment_classification")),
+            "REAL",
+        )
+        tagged(
+            "Lighting condition",
+            _text(scene_info.get("lighting_condition")),
+            "REAL",
+        )
+        tagged(
+            "Mean luminance (0–255)",
+            f"{float(scene_info['mean_luminance']):.1f}"
+            if scene_info.get("mean_luminance") is not None
+            else "not determined",
+            "REAL",
+        )
+        tagged(
+            "Contrast condition",
+            _text(scene_info.get("contrast_condition")),
+            "REAL",
+        )
+        tagged(
+            "Foreground luminance (bottom 30%, pixels only)",
+            f"{float(scene_info['road_surface_luminance']):.1f}"
+            if scene_info.get("road_surface_luminance") is not None
+            else "not determined",
+            "REAL",
+        )
+        tagged(
+            "Road surface material",
+            _text(scene_info.get("road_surface_assessment")),
+            "NOT DETERMINED",
+        )
+        tagged(
+            "Weather condition",
+            _text(scene_info.get("weather_condition")),
+            "REAL",
+        )
+        tagged("GPS coordinates", _text(scene_info.get("gps_coordinates")), "REAL")
+        tagged(
+            "Detected-object summary",
+            "; ".join(scene_summary.get("observations") or []) or "not determined",
+            "REAL",
+        )
+        tagged(
+            "Duplicate-suppressed boxes",
+            f"{scene_summary.get('postprocessed_detection_count', 'not determined')} retained "
+            f"of {scene_summary.get('raw_detection_count', 'not determined')} raw boxes "
+            "(class-aware IoU ≥ 0.85 / containment ≥ 0.95; moderate overlap kept)",
+            "REAL",
+        )
+        for limitation in scene_summary.get("limitations") or []:
+            tagged("Limitation", limitation, "REAL")
         colors = {
             "car": "#19c919",
             "truck": "#ffa500",
@@ -1215,7 +1355,10 @@ with scene_tab:
         tagged(
             "Overlapping vehicle boxes (occlusion/duplicate check)",
             f"{result['features']['heavily_overlapping_pairs']} heavily overlapping pair(s) "
-            f"among {result['features']['total_vehicle_pairs']} pair(s); raw detector output, no NMS applied",
+            f"among {result['features']['total_vehicle_pairs']} pair(s); class-aware duplicate "
+            f"suppression retains {scene_summary.get('postprocessed_detection_count', 'not determined')} "
+            f"of {scene_summary.get('raw_detection_count', 'not determined')} raw boxes before this "
+            "check; moderate overlap/occlusion is preserved. Overlap is not collision proof.",
             "REAL",
         )
         tagged("Fused-call selection", call_choice, "SIMULATED" if report and report.get("call_id") else "REAL")
@@ -1253,20 +1396,20 @@ with vehicles_tab:
                 if share is not None
                 else "not determined"
             )
+            # Raw EasyOCR text is shown as recognized text, never as a verified plate.
+            evidence = result["ocr_evidence"].get(vehicle.vehicle_id, PlateOCREvidence())
             confidence = vehicle.plate_confidence
-            verified = confidence is not None and float(confidence) >= PLATE_TRUST_THRESHOLD
-            # Only a candidate at or above the fixed 0.70 verification threshold is
-            # shown as a plate. Below it, keep the raw OCR candidate in a separate
-            # column but never promote it to a verified registration number.
+            # Verification requires both the fixed 0.70 real-OCR gate AND a
+            # registration-shaped candidate. Format validity alone is not proof,
+            # and a high-confidence partial read is still unverified.
+            confidence_ok = is_verified_plate_confidence(confidence)
+            verified = bool(evidence.format_valid) and confidence_ok
             if not verified:
                 plate = NOT_READABLE
                 plate_status = NOT_READABLE
             else:
                 plate = str(vehicle.license_plate)
                 plate_status = "verified"
-
-            # Raw EasyOCR text is shown as recognized text, never as a verified plate.
-            evidence = result["ocr_evidence"].get(vehicle.vehicle_id, PlateOCREvidence())
             raw_text = (
                 f"{evidence.raw_text} ({float(evidence.raw_confidence):.2f})"
                 if evidence.raw_text is not None and evidence.raw_confidence is not None
@@ -1287,10 +1430,12 @@ with vehicles_tab:
                     detection_status = evidence.ocr_status
                 elif evidence.ocr_status == "NO OCR RESULTS":
                     detection_status = "PLATE REGION DETECTED — UNREADABLE"
-                elif vehicle.plate_confidence is not None and float(vehicle.plate_confidence) >= PLATE_TRUST_THRESHOLD:
+                elif verified:
                     detection_status = "PLATE REGION DETECTED — READABLE"
-                elif evidence.plate is not None:
+                elif evidence.plate is not None and not confidence_ok:
                     detection_status = "PLATE REGION DETECTED — UNREADABLE (LOW OCR CONFIDENCE)"
+                elif evidence.plate is not None and not evidence.format_valid:
+                    detection_status = "PLATE REGION DETECTED — UNREADABLE (INVALID FORMAT)"
             bbox = evidence.plate_bbox
             bbox_text = (
                 ",".join(str(int(value)) for value in bbox)
@@ -1330,10 +1475,12 @@ with vehicles_tab:
             "plates and may miss Indian or unusual plates; if both YuNet and the "
             "heuristic return nothing, a plate-like whole-crop EasyOCR text box is "
             "used to propose a candidate region, then that crop is re-read. OCR "
-            "evidence is preserved verbatim; any plate candidate below "
-            "0.7 OCR confidence is shown as 'NOT READABLE (UNVERIFIED)' in the Plate "
-            "column, with its raw text and candidate retained in separate columns, and "
-            "no registration number is invented. "
+            "evidence is preserved verbatim; candidate regions are associated to one "
+            "vehicle by containment/centre geometry, and AMBIGUOUS or UNASSOCIATED "
+            "regions are never auto-selected. A plate is shown as verified only when "
+            "the candidate matches a registration format AND its real OCR confidence "
+            "is at least 0.70. Otherwise it is 'NOT READABLE (UNVERIFIED)' with raw "
+            "text and candidate retained separately; no registration number is invented. "
             "Missing reads are 'NOT READABLE (UNVERIFIED)'. Damage severity is not "
             "determined.",
             "REAL",
@@ -1417,11 +1564,13 @@ with accident_tab:
                 result["high_frame_count"],
                 "REAL",
             )
-            st.markdown("**Model output (from the highest-scoring sampled frame):**")
-            _badge("REAL")
-            tagged("Model verdict", result["verdict"], "REAL")
-            tagged("Uncalibrated model score", f"{result['score']:.4f}", "REAL")
-            tagged("Method", result["method"], "REAL")
+            st.markdown(
+                "**Raw model output (diagnostic only, from the highest-scoring sampled frame):**"
+            )
+            _badge("MODEL (PREDICTION)")
+            tagged("Raw model verdict", result["verdict"], "MODEL (PREDICTION)")
+            tagged("Uncalibrated model score", f"{result['score']:.4f}", "MODEL (PREDICTION)")
+            tagged("Method", result["method"], "MODEL (PREDICTION)")
             tagged("Scene status", result["status"], "REAL")
             st.markdown(PROTOTYPE_STATEMENT)
         else:
@@ -1436,12 +1585,77 @@ with accident_tab:
             tagged("Assessment", result["verdict"], "REAL")
             tagged("Scene status", result["status"], "REAL")
             tagged("Severity", result["severity"], "REAL")
-            st.markdown("**Raw classifier output (not reliable for a still-image decision):**")
-            _badge("REAL")
-            tagged("Raw model output", result["raw_model_verdict"], "REAL")
-            tagged("Uncalibrated model score", f"{result['score']:.4f}", "REAL")
-            tagged("Method", result["method"], "REAL")
+            st.markdown("**Raw classifier output (diagnostic only, not reliable for a still-image decision):**")
+            _badge("MODEL (PREDICTION)")
+            tagged("Raw model output", result["raw_model_verdict"], "MODEL (PREDICTION)")
+            tagged("Uncalibrated model score", f"{result['score']:.4f}", "MODEL (PREDICTION)")
+            tagged("Method", result["method"], "MODEL (PREDICTION)")
             tagged("Reasoning context", result["accident_event"].reasons, "REAL")
+        if result is not None:
+            assessment = result.get("evidence_assessment") or {}
+            st.markdown(
+                "**Four-tier accident evidence assessment (shared verbatim with "
+                "Incident Report and Dispatch):**"
+            )
+            _badge("REAL")
+            tagged(
+                "Assessment category",
+                _text(assessment.get("assessment_category")),
+                "REAL",
+            )
+            tagged(
+                "Human review",
+                "MANDATORY" if assessment.get("human_review_required") else "not determined",
+                "OPERATIONAL RULE",
+            )
+            tagged(
+                "Raw model verdict (separate diagnostic field)",
+                _text(assessment.get("model_verdict")),
+                "MODEL (PREDICTION)",
+            )
+            tagged(
+                "Uncalibrated model score (not calibrated confidence)",
+                f"{float(assessment['model_score']):.4f}"
+                if assessment.get("model_score") is not None
+                else "not determined",
+                "MODEL (PREDICTION)",
+            )
+            tagged("Media type", _text(assessment.get("media_type")), "REAL")
+            tagged(
+                "Domain compatibility",
+                _text(assessment.get("domain_compatibility")),
+                "REAL",
+            )
+            tagged("Scene status", _text(assessment.get("scene_status")), "REAL")
+            tagged(
+                "Evidence",
+                "; ".join(str(item) for item in assessment.get("evidence") or [])
+                or "not determined",
+                "REAL",
+            )
+            tagged(
+                "Contradictory evidence",
+                "; ".join(str(item) for item in assessment.get("contradictory_evidence") or [])
+                or "not determined",
+                "REAL",
+            )
+            tagged("Uncertainty", _text(assessment.get("uncertainty")), "REAL")
+            tagged(
+                "Temporal evidence available",
+                "yes" if assessment.get("temporal_evidence_available") else "no",
+                "REAL",
+            )
+            tagged(
+                "Reasoning",
+                _text(assessment.get("reasoning")),
+                "REAL",
+            )
+            tagged("Data source", _text(assessment.get("data_source")), "REAL")
+            st.caption(
+                "Human review is mandatory for every category. NO CLEAR ACCIDENT EVIDENCE "
+                "DETECTED means insufficient positive evidence in this sample; it never means "
+                "the road is safe or that no accident occurred."
+            )
     st.caption("Held-out test metrics from models/accident_classifier_metrics.json")
     tagged(
         "Test accuracy",
@@ -1612,7 +1826,14 @@ with hospitals_tab:
 # Tab 6 — Dispatch (Phase 8b: summary file only, never guessed)
 # ---------------------------------------------------------------------------
 with dispatch_tab:
-    _render_dispatch_tab(summary, needs["urgency"], needs["hazards"], report, location)
+    _render_dispatch_tab(
+        summary,
+        needs["urgency"],
+        needs["hazards"],
+        report,
+        location,
+        assessment=(report or {}).get("evidence_assessment"),
+    )
 
 # Device note is intentionally shown only after a real upload, so the no-upload
 # path cannot touch any model loader.

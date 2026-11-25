@@ -16,6 +16,7 @@ import core.cv.detector as detector
 import core.cv.plate_detector as plate_detector
 import core.ocr.plate_reader as plate_reader
 from app.video_utils import SampledFrame, SampledVideo, VideoMetadata
+from core.cv.scene_analysis import SuppressionResult
 from core.cv.plate_detector import (
     OCR_FALLBACK_METHOD,
     detect_plate_regions_with_ocr_fallback,
@@ -163,8 +164,22 @@ def test_process_video_forwards_requested_sample_count(monkeypatch) -> None:
             frames,
         )
 
+    detection = Detection(
+        detection_id="video-det",
+        label="car",
+        bbox=[0, 0, 8, 8],
+        confidence=0.8,
+        data_source="REAL",
+    )
+    diagnostics = SuppressionResult(
+        raw=(detection,),
+        detections=(detection,),
+        suppressed=(),
+        decisions=(),
+    )
+
     monkeypatch.setattr(main, "sample_video_frames", fake_sample)
-    monkeypatch.setattr(main, "detect", lambda image: [])
+    monkeypatch.setattr(main, "detect_with_diagnostics", lambda image, **kwargs: diagnostics)
     monkeypatch.setattr(main, "classify_frame_probability", lambda image: 0.5)
     monkeypatch.setattr(
         main.st,
@@ -179,3 +194,6 @@ def test_process_video_forwards_requested_sample_count(monkeypatch) -> None:
     assert captured["sample_count"] == 7
     assert len(result["frame_rows"]) == 4
     assert result["media_type"] == "video"
+    assert result["scene_summary"]["raw_detection_count"] == 1
+    assert result["scene_summary"]["postprocessed_detection_count"] == 1
+    assert result["orientation"]["duplicate_suppression"]["raw_detection_count"] == 1
