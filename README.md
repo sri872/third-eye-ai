@@ -18,6 +18,7 @@ Third Eye AI analyses an uploaded road image or traffic video, detects vehicles 
 | 4 | Deep Learning | `core/cv/detector.py`, `core/ml/accident_analyzer.py` | Neural-network inference uses Faster R-CNN for object detection and ResNet-18 feature extraction for the accident classifier. |
 | 5 | NLP | `core/nlp/` | spaCy/rule-based extraction structures optional caller-reported vehicles, people, location, injuries, hazards, urgency, and accident status. Caller information remains labelled separately from real visual evidence. |
 | 6 | Geospatial intelligence (supporting module) | `core/hospitals/`, `core/routing/` | Hospital records are classified and ranked using source tags, facility category, and geographic distance. Routing is a clearly labelled simulation using the available road-network data. |
+| 7 | Retrieval-Augmented Generation (RAG) | `core/rag/`, `data/knowledge_base/emergency_response_india.json` | Retrieves source-attributed emergency-response passages using local TF-IDF and returns an extractive evidence summary; optional local Ollama generation is available when configured. |
 
 ### RAG (Retrieval-Augmented Generation): restored as a separate knowledge assistant
 
@@ -94,6 +95,9 @@ Image or video upload
         +--> Hospitals
         |      structured OpenStreetMap records
         |      -> deterministic eligibility/category/distance ranking
+        |
+        +--> Emergency knowledge RAG (separate feature in Tab 5)
+        |      TF-IDF retrieval -> official-source passages -> extractive or optional local LLM answer
         |
         +--> Dispatch
                same assessment as context + labelled simulated route
