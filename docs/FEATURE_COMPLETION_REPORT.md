@@ -100,3 +100,26 @@ The verification scripts rewrote tracked `data/outputs/*` artifacts (including t
 ## Conclusion
 
 The five workstreams are integrated rather than side-by-side: the same `EvidenceAssessment` object now flows from analysis into Accident Check, Incident Report, Dispatch, SQLite, and tests. All available verification succeeded; the only non-passing verification script is the pre-existing, data-blocked accident-model evaluator that requires `data/embeddings.npz`, which is absent in this repository.
+
+
+---
+
+## Addendum — separate emergency-knowledge RAG assistant restored (2026-11-26)
+
+The embedding-based **hospital** retrieval system remains removed. Hospital discovery and eligibility still use the deterministic `core/hospitals/` package.
+
+A separate RAG knowledge assistant has now been restored under `core/rag/` for emergency-response knowledge questions in Tab 5:
+
+- `core/rag/retriever.py`: local scikit-learn TF-IDF lexical passage retrieval.
+- `core/rag/generator.py`: optional local Ollama generation with a strict source-passage prompt; labelled extractive response fallback if Ollama is not configured or unavailable.
+- `core/rag/pipeline.py`: end-to-end retrieval, response, source links, and limitations.
+- `data/knowledge_base/emergency_response_india.json`: curated and paraphrased source passages from MoRTH, the Motor Vehicles (Amendment) Act, 2019, NHM, and WHO official publications.
+- Tab 5 adds a dropdown of preset knowledge questions, retrieved evidence, relevance scores, and official source links.
+
+This RAG assistant is separate from hospital ranking, accident evidence assessment, incident report, and dispatch. It does not influence accident verdicts, eligibility, bed availability, triage, or emergency dispatch.
+
+The default mode is **extractive RAG**: retrieved passages are displayed as an extractive evidence summary. Actual LLM-generated text is optional and requires a separately installed and running local Ollama model configured through `THIRD_EYE_RAG_OLLAMA_MODEL`. The project does not install or download an LLM.
+
+New tests were added in `tests/test_rag_knowledge.py`, and `tests/test_hospitals_architecture.py` now verifies both that the separate knowledge RAG package exists and that deterministic hospital ranking does not depend on it.
+
+**Validation note:** the 327-test / 14-warning result above is from the integration before this RAG addendum. The newly added RAG and UI tests have not yet been run in the Mac PR worktree; rerun the focused tests and full pytest suite before merging this addendum.
