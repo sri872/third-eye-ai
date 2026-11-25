@@ -181,8 +181,10 @@ def parse_osm_element_to_hospital(elem: Dict[str, Any]) -> Optional[Hospital]:
         confidence=1.0,             # Confirmed real geographic entity
         data_source="REAL",
     )
-    is_valid, reason = validate_hospital_for_dispatch(hosp, tags)
-    hosp.excluded_from_dispatch_reason = reason
+    classification = classify_facility(hosp.name, tags)
+    hosp.source_facility_category = classification.category
+    hosp.source_dispatch_eligible = classification.dispatch_eligible
+    hosp.excluded_from_dispatch_reason = classification.reason
     return hosp
 
 
