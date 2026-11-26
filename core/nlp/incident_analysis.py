@@ -60,7 +60,7 @@ def analyze_incident(text: str) -> Dict[str, Any]:
     )
     if explicit_collision and not any(
         kind in incident_types
-        for kind in ("MULTI_VEHICLE_COLLISION", "ROLLOVER_COLLISION", "SINGLE_VEHICLE_INCIDENT")
+        for kind in ("MULTI_VEHICLE_COLLISION", "ROLLOVER_COLLISION")
     ):
         incident_types.append("VEHICLE_COLLISION")
 
