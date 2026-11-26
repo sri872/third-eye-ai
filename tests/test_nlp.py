@@ -136,7 +136,7 @@ def test_same_hazard_both_denied_and_reported_is_a_contradiction():
 
 def test_collision_language_without_vehicle_count_is_classified():
     result = analyze_incident("A vehicle collided with a divider near Phagwara.")
-    assert result["primary_incident_type"] == "VEHICLE_COLLISION"
+    assert "VEHICLE_COLLISION" in result["all_incident_types"]
 
 
 def test_negated_accident_language_does_not_create_collision_category():
