@@ -144,11 +144,11 @@ def compute_image_diagnostics(image: np.ndarray) -> Dict[str, Any]:
 
     # Lighting classification
     if brightness < 60:
-        lighting = "LOW_LIGHT_OR_NIGHT"
+        lighting = "LOW_EXPOSURE"
     elif brightness > 195:
-        lighting = "HIGH_GLARE_OR_OVEREXPOSED"
+        lighting = "HIGH_EXPOSURE_OR_GLARE"
     else:
-        lighting = "NORMAL_DAYLIGHT"
+        lighting = "MID_RANGE_EXPOSURE"
 
     # Sharpness classification
     if sharpness < 80:
@@ -166,6 +166,6 @@ def compute_image_diagnostics(image: np.ndarray) -> Dict[str, Any]:
         "mean_brightness": round(brightness, 2),
         "contrast_std": round(contrast, 2),
         "sharpness_laplacian_var": round(sharpness, 2),
-        "lighting_condition": lighting,
+        "exposure_assessment": lighting,
         "clarity_assessment": clarity,
     }
