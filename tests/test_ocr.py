@@ -148,3 +148,8 @@ def test_ocr_without_ground_truth_is_never_marked_verified(synthetic_plate_image
     assert result["is_verified"] is False
     assert result["similarity_is_probability"] is False
     assert result.get("variant_attempts") is not None
+
+
+def test_template_recognizer_uses_multiple_classical_font_variants(recognizer):
+    assert all(len(variants) > 1 for variants in recognizer.letter_template_bank.values())
+    assert all(len(variants) > 1 for variants in recognizer.digit_template_bank.values())
