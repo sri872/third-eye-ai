@@ -1,64 +1,140 @@
-"""Road Network Router using NetworkX and GraphML.
+"""Directed road-network routing using the saved OpenStreetMap GraphML graph.
 
-Calculates deterministic road routes, distances, and estimated travel times
-between SOS incident coordinates and target hospitals.
+Only an actual connected path in the saved graph is returned as a road route.
+There is deliberately no straight-line-to-road-distance fallback.
 """
+from __future__ import annotations
 
-import os
 import math
-from typing import Dict, Any, List, Tuple, Optional
+from pathlib import Path
+from typing import Any, Optional
+from urllib.parse import quote
+
 import networkx as nx
 
 
-class RoadNetworkRouter:
-    """Computes shortest path routes on the road graph network."""
+PROJECT_ROOT = Path(__file__).resolve().parents[2]
+DEFAULT_GRAPH_PATH = PROJECT_ROOT / "data" / "phagwara_drive_network.graphml"
+MAX_SNAP_DISTANCE_M = 1800.0
+CONNECTOR_SPEED_KPH = 20.0
+DEFAULT_ROAD_SPEED_KPH = 30.0
 
-    def __init__(self, graph_path: Optional[str] = None):
-        if graph_path is None:
-            curr_dir = os.path.dirname(os.path.abspath(__file__))
-            graph_path = os.path.abspath(
-                os.path.join(curr_dir, "..", "..", "data", "phagwara_drive_network.graphml")
-            )
-        self.graph_path = graph_path
+
+class RouteUnavailableError(RuntimeError):
+    """A genuine road-network route cannot be calculated for these coordinates."""
+
+
+def haversine_distance_m(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
+    radius = 6_371_000.0
+    p1, p2 = math.radians(lat1), math.radians(lat2)
+    dp, dl = math.radians(lat2 - lat1), math.radians(lon2 - lon1)
+    a = math.sin(dp / 2.0) ** 2 + math.cos(p1) * math.cos(p2) * math.sin(dl / 2.0) ** 2
+    return 2.0 * radius * math.atan2(math.sqrt(a), math.sqrt(max(0.0, 1.0 - a)))
+
+
+class RoadNetworkRouter:
+    """Computes minimum-travel-time routes over a directed OSM road graph."""
+
+    def __init__(
+        self,
+        graph_path: Optional[str] = None,
+        graph: Optional[nx.Graph] = None,
+        max_snap_distance_m: float = MAX_SNAP_DISTANCE_M,
+    ):
+        self.graph_path = str(graph_path or DEFAULT_GRAPH_PATH)
+        self.max_snap_distance_m = float(max_snap_distance_m)
         self.graph: Optional[nx.MultiDiGraph] = None
-        self._load_graph()
+        if graph is not None:
+            self.graph = self._normalize_graph(graph)
+        else:
+            self._load_graph()
+
+    @staticmethod
+    def _edge_metrics(attributes: dict[str, Any]) -> tuple[float, float]:
+        try:
+            distance = float(attributes.get("length", 0.0))
+        except (TypeError, ValueError):
+            distance = 0.0
+        if not math.isfinite(distance) or distance <= 0:
+            raise RouteUnavailableError("Road graph contains an invalid edge length.")
+        try:
+            seconds = float(attributes.get("travel_time", 0.0))
+        except (TypeError, ValueError):
+            seconds = 0.0
+        if not math.isfinite(seconds) or seconds <= 0:
+            try:
+                speed = float(attributes.get("speed_kph", DEFAULT_ROAD_SPEED_KPH))
+            except (TypeError, ValueError):
+                speed = DEFAULT_ROAD_SPEED_KPH
+            if not math.isfinite(speed) or speed <= 0:
+                speed = DEFAULT_ROAD_SPEED_KPH
+            seconds = distance / (speed * 1000.0 / 3600.0)
+        return distance, seconds
+
+    @classmethod
+    def _normalize_graph(cls, graph: nx.Graph) -> nx.MultiDiGraph:
+        if not graph.is_directed():
+            raise RouteUnavailableError(
+                "The saved road graph is not directed; one-way road restrictions cannot be respected."
+            )
+        if graph.is_multigraph():
+            normalized = nx.MultiDiGraph(graph)
+        else:
+            normalized = nx.MultiDiGraph(graph)
+        valid_nodes = []
+        for node, attrs in normalized.nodes(data=True):
+            try:
+                attrs["x"] = float(attrs["x"])
+                attrs["y"] = float(attrs["y"])
+            except (KeyError, TypeError, ValueError):
+                continue
+            if not math.isfinite(attrs["x"]) or not math.isfinite(attrs["y"]):
+                continue
+            valid_nodes.append(node)
+        normalized.remove_nodes_from(set(normalized.nodes) - set(valid_nodes))
+        if len(normalized) < 2:
+            raise RouteUnavailableError("Road graph contains fewer than two coordinate-tagged nodes.")
+        for _, _, _, attrs in normalized.edges(keys=True, data=True):
+            cls._edge_metrics(attrs)  # validate and normalize numeric attributes
+            distance, seconds = cls._edge_metrics(attrs)
+            attrs["length"] = distance
+            attrs["travel_time"] = seconds
+        return normalized
 
     def _load_graph(self) -> None:
-        if os.path.exists(self.graph_path):
-            try:
-                self.graph = nx.read_graphml(self.graph_path)
-                # Ensure all edge length attributes are floats for Dijkstra routing
-                for u, v, k, data in self.graph.edges(keys=True, data=True):
-                    if "length" in data:
-                        try:
-                            data["length"] = float(data["length"])
-                        except (ValueError, TypeError):
-                            data["length"] = 100.0
-                    else:
-                        data["length"] = 100.0
-            except Exception:
-                self.graph = None
+        path = Path(self.graph_path)
+        if not path.is_file():
+            raise RouteUnavailableError(f"Saved road graph is missing: {path}")
+        try:
+            graph = nx.read_graphml(
+                path,
+                node_type=str,
+                force_multigraph=True,
+            )
+            self.graph = self._normalize_graph(graph)
+        except RouteUnavailableError:
+            raise
+        except Exception as exc:
+            raise RouteUnavailableError(f"Saved road graph could not be loaded: {exc}") from exc
 
-    def find_nearest_node(self, lat: float, lon: float) -> Optional[str]:
-        """Find the nearest graph node to given coordinates using Euclidean approximation."""
-        if self.graph is None:
-            return None
-
+    def find_nearest_node(self, lat: float, lon: float) -> tuple[str, float]:
+        """Return nearest graph node and true great-circle snap distance in metres."""
+        if self.graph is None or not self.graph:
+            raise RouteUnavailableError("Road graph is not loaded.")
         best_node = None
-        min_dist_sq = float("inf")
-
-        for node_id, data in self.graph.nodes(data=True):
-            try:
-                ny = float(data.get("y", 0.0))
-                nx_coord = float(data.get("x", 0.0))
-                dist_sq = (lat - ny) ** 2 + (lon - nx_coord) ** 2
-                if dist_sq < min_dist_sq:
-                    min_dist_sq = dist_sq
-                    best_node = node_id
-            except (ValueError, TypeError):
-                continue
-
-        return best_node
+        best_distance = float("inf")
+        for node, attrs in self.graph.nodes(data=True):
+            distance = haversine_distance_m(lat, lon, attrs["y"], attrs["x"])
+            if distance < best_distance:
+                best_node, best_distance = node, distance
+        if best_node is None:
+            raise RouteUnavailableError("Road graph has no coordinate-tagged nodes.")
+        if best_distance > self.max_snap_distance_m:
+            raise RouteUnavailableError(
+                f"Coordinate is outside saved road-graph coverage: nearest road node is "
+                f"{best_distance:.0f} m away (limit {self.max_snap_distance_m:.0f} m)."
+            )
+        return best_node, best_distance
 
     def calculate_route(
         self,
@@ -66,89 +142,100 @@ class RoadNetworkRouter:
         start_lon: float,
         dest_lat: float,
         dest_lon: float,
-    ) -> Dict[str, Any]:
-        """Calculate road network route between start and destination coordinates.
+    ) -> dict[str, Any]:
+        """Return a road-network path, distance and graph-based travel-time estimate."""
+        values = (start_lat, start_lon, dest_lat, dest_lon)
+        try:
+            start_lat, start_lon, dest_lat, dest_lon = (float(v) for v in values)
+        except (TypeError, ValueError):
+            raise ValueError("Route coordinates must be numeric.") from None
+        if not all(math.isfinite(v) for v in (start_lat, start_lon, dest_lat, dest_lon)):
+            raise ValueError("Route coordinates must be finite.")
+        if not (-90 <= start_lat <= 90 and -90 <= dest_lat <= 90):
+            raise ValueError("Route latitude is outside geographic limits.")
+        if not (-180 <= start_lon <= 180 and -180 <= dest_lon <= 180):
+            raise ValueError("Route longitude is outside geographic limits.")
+        if self.graph is None:
+            raise RouteUnavailableError("Saved road graph is not loaded.")
 
-        The route ALWAYS starts at (start_lat, start_lon) representing the SOS location.
-        """
-        # Google Maps navigation external link
-        gmaps_url = f"https://www.google.com/maps/dir/?api=1&origin={start_lat:.5f},{start_lon:.5f}&destination={dest_lat:.5f},{dest_lon:.5f}"
+        start_node, start_snap_m = self.find_nearest_node(start_lat, start_lon)
+        dest_node, dest_snap_m = self.find_nearest_node(dest_lat, dest_lon)
 
-        # 1. Attempt Road Network Shortest Path
-        if self.graph is not None:
-            start_node = self.find_nearest_node(start_lat, start_lon)
-            dest_node = self.find_nearest_node(dest_lat, dest_lon)
+        def edge_time(_u, _v, edge_bundle):
+            # NetworkX passes a key->attributes mapping for MultiDiGraph weights.
+            return min(self._edge_metrics(attrs)[1] for attrs in edge_bundle.values())
 
-            if start_node and dest_node and start_node != dest_node:
-                try:
-                    # Dijkstra shortest path using edge 'length' (meters)
-                    path_nodes = nx.shortest_path(
-                        self.graph,
-                        source=start_node,
-                        target=dest_node,
-                        weight="length",
-                    )
+        try:
+            nodes = nx.shortest_path(
+                self.graph,
+                source=start_node,
+                target=dest_node,
+                weight=edge_time,
+                method="dijkstra",
+            )
+        except (nx.NetworkXNoPath, nx.NodeNotFound) as exc:
+            raise RouteUnavailableError(
+                "No directed road path connects the SOS location and this hospital in the saved graph."
+            ) from exc
 
-                    # Accumulate road distance along edges
-                    total_meters = 0.0
-                    for u, v in zip(path_nodes[:-1], path_nodes[1:]):
-                        edge_data = self.graph.get_edge_data(u, v)
-                        if edge_data:
-                            # MultiDiGraph returns dict of parallel edges
-                            first_edge = list(edge_data.values())[0] if isinstance(edge_data, dict) else edge_data
-                            total_meters += float(first_edge.get("length", 100.0))
+        graph_distance_m = 0.0
+        graph_time_seconds = 0.0
+        for u, v in zip(nodes, nodes[1:]):
+            edge_bundle = self.graph.get_edge_data(u, v)
+            if not edge_bundle:
+                raise RouteUnavailableError("Road path contains a missing graph edge.")
+            distance, seconds = min(
+                (self._edge_metrics(attrs) for attrs in edge_bundle.values()),
+                key=lambda metrics: metrics[1],
+            )
+            graph_distance_m += distance
+            graph_time_seconds += seconds
 
-                    road_km = max(0.1, round(total_meters / 1000.0, 2))
-                    # Estimate travel time assuming 40 km/h average speed in urban/suburban corridor
-                    travel_time_min = max(1.0, round((road_km / 40.0) * 60.0, 1))
+        connector_distance_m = start_snap_m + dest_snap_m
+        connector_speed_mps = CONNECTOR_SPEED_KPH * 1000.0 / 3600.0
+        connector_seconds = connector_distance_m / connector_speed_mps
+        coords = [(start_lat, start_lon)]
+        coords.extend(
+            (self.graph.nodes[node]["y"], self.graph.nodes[node]["x"])
+            for node in nodes
+        )
+        coords.append((dest_lat, dest_lon))
+        # De-duplicate repeated adjacent coordinates without changing route order.
+        route_geometry = []
+        for point in coords:
+            if not route_geometry or point != route_geometry[-1]:
+                route_geometry.append(point)
 
-                    # Extract path coordinates
-                    route_coords: List[Tuple[float, float]] = [(start_lat, start_lon)]
-                    for n in path_nodes:
-                        ndata = self.graph.nodes[n]
-                        route_coords.append((float(ndata["y"]), float(ndata["x"])))
-                    route_coords.append((dest_lat, dest_lon))
-
-                    return {
-                        "status": "ROAD_NETWORK_ROUTE_FOUND",
-                        "distance_km": road_km,
-                        "estimated_time_minutes": travel_time_min,
-                        "route_geometry": route_coords,
-                        "node_count": len(path_nodes),
-                        "google_maps_url": gmaps_url,
-                        "is_road_network": True,
-                    }
-                except (nx.NetworkXNoPath, nx.NodeNotFound):
-                    pass
-
-        # 2. Fallback: Straight-line Haversine Distance (with explicit disclaimer)
-        haversine_km = self.haversine_distance_km(start_lat, start_lon, dest_lat, dest_lon)
-        # Apply winding factor 1.35 and 40 km/h speed
-        estimated_road_km = round(haversine_km * 1.35, 2)
-        travel_time_min = max(1.0, round((estimated_road_km / 40.0) * 60.0, 1))
-
+        distance_m = graph_distance_m + connector_distance_m
+        total_seconds = graph_time_seconds + connector_seconds
+        google_maps_url = (
+            "https://www.google.com/maps/dir/?api=1"
+            f"&origin={quote(f'{start_lat:.6f},{start_lon:.6f}')}"
+            f"&destination={quote(f'{dest_lat:.6f},{dest_lon:.6f}')}"
+            "&travelmode=driving"
+        )
         return {
-            "status": "ROUTING_FALLBACK_HAVERSINE",
-            "distance_km": estimated_road_km,
-            "estimated_time_minutes": travel_time_min,
-            "route_geometry": [(start_lat, start_lon), (dest_lat, dest_lon)],
-            "node_count": 2,
-            "google_maps_url": gmaps_url,
-            "is_road_network": False,
-            "notes": "Direct road network path not connected; straight-line estimate with 1.35 winding factor used.",
+            "status": "ROAD_NETWORK_ROUTE_FOUND",
+            "distance_km": round(distance_m / 1000.0, 2),
+            "estimated_time_minutes": round(total_seconds / 60.0, 1),
+            "road_graph_distance_km": round(graph_distance_m / 1000.0, 2),
+            "off_network_connector_m": round(connector_distance_m, 0),
+            "estimated_connector_minutes": round(connector_seconds / 60.0, 1),
+            "route_geometry": route_geometry,
+            "node_count": len(nodes),
+            "start_snap_m": round(start_snap_m, 0),
+            "destination_snap_m": round(dest_snap_m, 0),
+            "google_maps_url": google_maps_url,
+            "is_road_network": True,
+            "route_source": "SAVED_OPENSTREETMAP_DIRECTED_GRAPH",
+            "travel_time_note": (
+                "Estimated from static travel_time values on the saved OSM graph plus "
+                f"straight-line endpoint connectors assumed at {CONNECTOR_SPEED_KPH:.0f} km/h. "
+                "No live traffic or ambulance ETA is available."
+            ),
         }
 
     @staticmethod
     def haversine_distance_km(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
-        """Calculate the great-circle distance between two points in kilometers."""
-        r = 6371.0  # Earth's radius in kilometers
-        d_lat = math.radians(lat2 - lat1)
-        d_lon = math.radians(lon2 - lon1)
-        a = (
-            math.sin(d_lat / 2.0) ** 2
-            + math.cos(math.radians(lat1))
-            * math.cos(math.radians(lat2))
-            * math.sin(d_lon / 2.0) ** 2
-        )
-        c = 2.0 * math.atan2(math.sqrt(a), math.sqrt(1.0 - a))
-        return round(r * c, 3)
+        """Great-circle distance helper; never returned as a driving route."""
+        return haversine_distance_m(lat1, lon1, lat2, lon2) / 1000.0

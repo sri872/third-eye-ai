@@ -1,157 +1,181 @@
-"""Streamlit UI Component for SOS Location Capture and Verification.
+"""SOS incident location inputs with explicit source provenance."""
+from __future__ import annotations
 
-Integrates browser Geolocation API with explicit user permission,
-preset accident SOS events, coordinate validation, and source provenance tracking.
-"""
-
-import os
 import json
-from datetime import datetime, timezone
 import streamlit as st
-import streamlit.components.v1 as components
 
+from app.components.sos_gps_component import capture_device_location
 from core.sos.location import (
-    SOSLocation,
-    validate_coordinates,
-    create_sos_location,
-    SOURCE_GPS_SOS_PAYLOAD,
     SOURCE_DEVICE_GEOLOCATION,
     SOURCE_OPERATOR_MANUAL,
+    SOURCE_SIMULATED_DEMO,
+    SOURCE_SOS_JSON_IMPORT,
+    SOSLocation,
+    create_sos_location,
+    parse_sos_payload,
 )
 
 
-BASE_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-PRESETS_PATH = os.path.join(BASE_DIR, "config", "demo_incident_locations.json")
+DEMO_INCIDENTS = {
+    "NH-44 GT Road near Jagatjit Sugar Mill": (31.2142, 75.7785),
+    "Banga Road commercial intersection": (31.2185, 75.7852),
+    "GT Road near LPU, Chaheru": (31.2532, 75.7035),
+    "Phagwara-Hoshiarpur Road": (31.2455, 75.7802),
+}
 
 
-def render_sos_location_component() -> SOSLocation:
-    """Render the SOS location management interface and return validated SOSLocation."""
-    st.subheader("📍 Incident SOS Location & GPS Verification")
-    st.markdown(
-        "Validated emergency coordinates determine hospital suitability and route origin. "
-        "**Dispatcher device location never silently overrides incident SOS coordinates.**"
+def _remember(location: SOSLocation, mode: str) -> None:
+    st.session_state["third_eye_sos_location"] = location.to_dict()
+    st.session_state["third_eye_sos_mode"] = mode
+
+
+def _clear_saved() -> None:
+    st.session_state.pop("third_eye_sos_location", None)
+    st.session_state.pop("third_eye_sos_mode", None)
+
+
+def _restore(mode: str) -> SOSLocation | None:
+    saved = st.session_state.get("third_eye_sos_location")
+    if not isinstance(saved, dict) or st.session_state.get("third_eye_sos_mode") != mode:
+        return None
+    location, _ = create_sos_location(
+        saved.get("latitude"),
+        saved.get("longitude"),
+        source=saved.get("source"),
+        accuracy_meters=saved.get("accuracy_meters"),
+        timestamp=saved.get("timestamp"),
+        location_name=saved.get("location_name"),
     )
+    return location
 
-    # Load presets
-    presets = []
-    if os.path.exists(PRESETS_PATH):
-        with open(PRESETS_PATH, "r", encoding="utf-8") as f:
-            presets = json.load(f)
 
-    # 3-Way Location Input Selection
-    loc_mode = st.radio(
-        "Location Input Mode",
+def render_sos_location_component() -> SOSLocation | None:
+    """Capture an SOS payload, actual browser GPS, or operator/demo coordinates."""
+    st.subheader("Incident SOS location")
+    st.caption(
+        "The selected accident coordinates are the route origin. A dispatcher’s "
+        "computer location is never substituted automatically."
+    )
+    mode = st.radio(
+        "Incident location source",
         [
-            "1. Verified SOS Payload / Scenario (Priority 1)",
-            "2. Device Geolocation (At Scene - Priority 2)",
-            "3. Operator Manual Verification (Priority 3)",
+            "Incoming SOS event JSON (sender not authenticated here)",
+            "Browser GPS (device must be at the incident)",
+            "Operator-verified coordinates",
+            "Phagwara demo scenario (SIMULATED)",
         ],
-        index=0,
+        key="sos-source-mode",
     )
+    location = None
+    error = None
+    allow_restore = True
 
-    selected_sos: SOSLocation = None
-
-    if "1." in loc_mode:
-        preset_options = {p["name"]: p for p in presets}
-        chosen_preset_name = st.selectbox("Select Verified Accident SOS Payload", list(preset_options.keys()))
-        preset_data = preset_options[chosen_preset_name]
-
-        lat = preset_data["latitude"]
-        lon = preset_data["longitude"]
-        name = preset_data["name"]
-
-        selected_sos, msg = create_sos_location(
-            lat=lat,
-            lon=lon,
-            source=SOURCE_GPS_SOS_PAYLOAD,
-            accuracy_meters=5.0,  # High accuracy payload
-            location_name=name,
+    if mode == "Incoming SOS event JSON (sender not authenticated here)":
+        allow_restore = False
+        st.caption(
+            "Upload/paste an event exported by an authorized SOS provider. This prototype "
+            "does not expose an authenticated live webhook; verify the sender and event out of band."
         )
-
-    elif "2." in loc_mode:
-        st.info("Browser GPS requires explicit device permission. Click below to capture.")
-        # HTML5 Geolocation bridge
-        gps_html = """
-        <div style="font-family: sans-serif; padding: 10px; background: #f0f2f6; border-radius: 8px;">
-            <p><strong>Device Geolocation API (User Consent Required)</strong></p>
-            <button onclick="getLocation()" style="padding: 8px 16px; background: #ff4b4b; color: white; border: none; border-radius: 4px; cursor: pointer;">
-                📍 Grant Permission & Capture Device GPS
-            </button>
-            <p id="status" style="font-size: 13px; color: #555; margin-top: 8px;">Waiting for user trigger...</p>
-        </div>
-        <script>
-            function getLocation() {
-                var status = document.getElementById("status");
-                if (navigator.geolocation) {
-                    status.innerText = "Requesting browser permission...";
-                    navigator.geolocation.getCurrentPosition(showPosition, showError, {timeout: 10000, enableHighAccuracy: true});
-                } else {
-                    status.innerText = "Geolocation is not supported by this browser.";
-                }
-            }
-            function showPosition(position) {
-                var status = document.getElementById("status");
-                status.innerText = "Captured: Lat " + position.coords.latitude.toFixed(5) + ", Lon " + position.coords.longitude.toFixed(5) + " (±" + Math.round(position.coords.accuracy) + "m)";
-            }
-            function showError(error) {
-                var status = document.getElementById("status");
-                switch(error.code) {
-                    case error.PERMISSION_DENIED:
-                        status.innerText = "Permission Denied: User refused GPS access.";
-                        break;
-                    case error.POSITION_UNAVAILABLE:
-                        status.innerText = "Position Unavailable: GPS signal not acquired.";
-                        break;
-                    case error.TIMEOUT:
-                        status.innerText = "Timeout: Location request timed out.";
-                        break;
-                    default:
-                        status.innerText = "Unknown geolocation error occurred.";
-                }
-            }
-        </script>
-        """
-        components.html(gps_html, height=130)
-
-        # Allow entering captured device coords
-        col_c1, col_c2, col_c3 = st.columns(3)
-        with col_c1:
-            dev_lat = st.number_input("Captured Latitude", value=31.2185, format="%.5f")
-        with col_c2:
-            dev_lon = st.number_input("Captured Longitude", value=75.7852, format="%.5f")
-        with col_c3:
-            dev_acc = st.number_input("GPS Accuracy (m)", value=8.0, min_value=1.0, max_value=500.0)
-
-        selected_sos, msg = create_sos_location(
-            lat=dev_lat,
-            lon=dev_lon,
-            source=SOURCE_DEVICE_GEOLOCATION,
-            accuracy_meters=dev_acc,
-            location_name="Device GPS (Physically at Incident)",
+        upload = st.file_uploader("SOS event JSON file", type=["json"], key="sos-json-upload")
+        payload_text = st.text_area(
+            "Or paste SOS JSON",
+            key="sos-json-text",
+            placeholder='{"latitude": 31.2142, "longitude": 75.7785, "accuracy_meters": 12, "timestamp": "2026-11-26T08:00:00Z"}',
         )
+        if upload is not None or payload_text.strip():
+            try:
+                raw = upload.getvalue().decode("utf-8") if upload is not None else payload_text
+                payload = json.loads(raw)
+                location, error = parse_sos_payload(
+                    payload,
+                    source=SOURCE_SOS_JSON_IMPORT,
+                )
+                if location is not None:
+                    _remember(location, mode)
+                else:
+                    _clear_saved()
+            except (UnicodeDecodeError, json.JSONDecodeError) as exc:
+                error = f"Invalid SOS JSON: {exc}"
+                _clear_saved()
+
+    elif mode == "Browser GPS (device must be at the incident)":
+        st.info(
+            "Use browser GPS only when this device is physically with the accident. "
+            "The browser asks permission only after you press the capture button."
+        )
+        result = capture_device_location()
+        if isinstance(result, dict):
+            if result.get("error"):
+                error = str(result["error"])
+                _clear_saved()
+            else:
+                location, error = parse_sos_payload(
+                    result,
+                    source=SOURCE_DEVICE_GEOLOCATION,
+                )
+                if location is not None:
+                    _remember(location, mode)
+                else:
+                    _clear_saved()
+
+    elif mode == "Operator-verified coordinates":
+        allow_restore = True
+        with st.form("operator-sos-location"):
+            lat_text = st.text_input("Accident latitude", placeholder="Enter verified latitude")
+            lon_text = st.text_input("Accident longitude", placeholder="Enter verified longitude")
+            accuracy_text = st.text_input("Accuracy metres (optional)", placeholder="Leave blank if unknown")
+            name = st.text_input("Location description (optional)", placeholder="Road, landmark or address")
+            submitted = st.form_submit_button("Validate incident coordinates")
+        if submitted:
+            location, error = create_sos_location(
+                lat_text,
+                lon_text,
+                source=SOURCE_OPERATOR_MANUAL,
+                accuracy_meters=accuracy_text or None,
+                location_name=name or None,
+            )
+            if location is not None:
+                _remember(location, mode)
+            else:
+                _clear_saved()
 
     else:
-        col_m1, col_m2 = st.columns(2)
-        with col_m1:
-            man_lat = st.number_input("Operator Latitude", value=31.2142, format="%.5f")
-        with col_m2:
-            man_lon = st.number_input("Operator Longitude", value=75.7785, format="%.5f")
+        choice = st.selectbox("Choose simulated incident location", list(DEMO_INCIDENTS))
+        if st.button("Use simulated demo location", key="choose-demo-sos"):
+            lat, lon = DEMO_INCIDENTS[choice]
+            location, error = create_sos_location(
+                lat,
+                lon,
+                source=SOURCE_SIMULATED_DEMO,
+                location_name=choice,
+            )
+            if location is not None:
+                _remember(location, mode)
 
-        man_name = st.text_input("Verified Location Description", value="Phagwara NH-44 Highway Milepost")
-        selected_sos, msg = create_sos_location(
-            lat=man_lat,
-            lon=man_lon,
-            source=SOURCE_OPERATOR_MANUAL,
-            accuracy_meters=25.0,
-            location_name=man_name,
+    if location is None and allow_restore:
+        location = _restore(mode)
+    if error:
+        st.error(error)
+    if location is not None:
+        if location.is_stale:
+            st.error("This SOS timestamp is older than 15 minutes. Capture or verify a fresh incident location before routing.")
+        c1, c2, c3 = st.columns(3)
+        c1.metric("Latitude", f"{location.latitude:.6f}")
+        c2.metric("Longitude", f"{location.longitude:.6f}")
+        c3.metric(
+            "GPS accuracy",
+            f"±{location.accuracy_meters:.0f} m"
+            if location.accuracy_meters is not None else "Not supplied",
         )
-
-    # Display validated location metrics
-    if selected_sos:
-        c1, c2, c3, c4 = st.columns(4)
-        c1.metric("Latitude", f"{selected_sos.latitude:.5f}°")
-        c2.metric("Longitude", f"{selected_sos.longitude:.5f}°")
-        c3.metric("GPS Accuracy", f"±{selected_sos.accuracy_meters:.1f} m" if selected_sos.accuracy_meters else "N/A")
-        c4.metric("Location Source", selected_sos.source)
-
-    return selected_sos
+        st.caption(f"Source: {location.source} | Captured: {location.timestamp}")
+        if location.source == SOURCE_SIMULATED_DEMO:
+            st.warning("SIMULATED location for demonstration only. It is not a live SOS signal.")
+        elif location.source == SOURCE_OPERATOR_MANUAL:
+            st.info("Operator-entered coordinates; verify the incident pin before using the route.")
+        elif location.source == SOURCE_SOS_JSON_IMPORT:
+            st.warning("Imported SOS JSON is not cryptographically authenticated by this application.")
+        elif location.accuracy_meters is not None and location.accuracy_meters > 100:
+            st.warning("GPS accuracy exceeds 100 m. Confirm the incident location before relying on this route.")
+    else:
+        st.info("No incident coordinates have been confirmed. Hospital routing remains disabled.")
+    return location

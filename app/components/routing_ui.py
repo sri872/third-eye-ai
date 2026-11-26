@@ -1,12 +1,8 @@
-"""Streamlit UI Component for Hospital Selection, Routing & Interactive Map.
+"""Hospital recommendation and road route visualization."""
+from __future__ import annotations
 
-Renders deterministic hospital suitability rankings, road-network ambulance routes,
-interactive Folium map visualizations, and external Google Maps links.
-"""
-
-from typing import Dict, Any, Optional
-import streamlit as st
 import folium
+import streamlit as st
 from streamlit_folium import st_folium
 
 from core.sos.location import SOSLocation
@@ -19,124 +15,128 @@ def get_hospital_ranker() -> HospitalRanker:
 
 
 def render_hospital_routing_tab(
-    sos_location: SOSLocation,
+    sos_location: SOSLocation | None,
     urgency_level: str = "HIGH",
+    incident_text: str = "",
 ):
-    """Render the Hospital Intelligence & Ambulance Routing tab."""
-    st.subheader("🚑 Nearest Suitable Hospital Selection & Route")
-    st.markdown(
-        "Hospitals are ranked primarily by **documented suitability** and secondarily by **road network travel time**. "
-        "Routes strictly originate from the **accident SOS coordinates**."
+    """Render the nearest source-tagged hospital and its saved-graph road route."""
+    st.subheader("Nearest suitable hospital and ambulance route")
+    st.caption(
+        "Facilities are filtered to source-tagged hospitals only. Ranking uses "
+        "source-record hints and route time calculated on the saved road graph."
     )
-
-    if not sos_location or not sos_location.latitude or not sos_location.longitude:
-        st.warning("Please provide a validated incident SOS location to compute emergency hospital routing.")
+    if sos_location is None:
+        st.warning("Provide an SOS event, capture browser GPS at the incident, or verify operator coordinates.")
+        return None
+    if sos_location.is_stale:
+        st.error("The SOS coordinates are stale. Refresh or verify the incident location before routing.")
         return None
 
     ranker = get_hospital_ranker()
-    ranking_data = ranker.rank_hospitals(sos_location, urgency_level=urgency_level)
+    ranking = ranker.rank_hospitals(
+        sos_location,
+        urgency_level=urgency_level,
+        incident_text=incident_text,
+    )
+    if ranking.get("error") or not ranking.get("primary_recommendation"):
+        st.error(ranking.get("error", "No routable hospital found for this incident location."))
+        st.info(
+            "No straight-line distance has been substituted for a driving route. "
+            "Try a verified location inside the saved Phagwara road-network coverage."
+        )
+        return ranking
 
-    if "error" in ranking_data and ranking_data.get("primary_recommendation") is None:
-        st.error(ranking_data["error"])
-        return None
-
-    primary = ranking_data["primary_recommendation"]
-    alternatives = ranking_data["alternatives"]
-
-    # 1. Primary Recommendation Banner
-    fac = primary["facility"]
+    primary = ranking["primary_recommendation"]
+    facility = primary["facility"]
     route = primary["route"]
-
-    st.success(f"### 🏥 Primary Recommended Facility: {fac['name']}")
-    p1, p2, p3, p4 = st.columns(4)
-    p1.metric("Road Distance", f"{route['distance_km']} km")
-    p2.metric("Estimated Journey Time", f"~{route['estimated_time_minutes']} min")
-    p3.metric("Facility Category", fac["category"].title())
-    p4.metric("Emergency Tag", "YES (24/7)" if fac["has_documented_emergency"] else "Undocumented")
-
-    st.markdown(f"**Address**: {fac['address']}")
-    if fac.get("phone"):
-        st.markdown(f"**Emergency Phone**: `{fac['phone']}` *(Prototype note: App does not place calls)*")
-    else:
-        st.caption("Contact phone: Undocumented in OpenStreetMap cache.")
-
-    st.markdown(f"**Ranking Rationale**: {primary['ranking_reason']}")
-    st.markdown(f"🔗 [Open Navigation in Google Maps]({route['google_maps_url']})")
-
-    # 2. Interactive Route Map using Folium
-    st.markdown("#### Interactive Ambulance Response Route")
-    start_lat = sos_location.latitude
-    start_lon = sos_location.longitude
-    dest_lat = fac["latitude"]
-    dest_lon = fac["longitude"]
-
-    # Center map midway
-    mid_lat = (start_lat + dest_lat) / 2.0
-    mid_lon = (start_lon + dest_lon) / 2.0
-
-    m = folium.Map(location=[mid_lat, mid_lon], zoom_start=13, tiles="OpenStreetMap")
-
-    # Incident Marker (Red)
-    folium.Marker(
-        [start_lat, start_lon],
-        popup=f"🚨 Incident SOS: {sos_location.location_name}",
-        tooltip="Incident Location (SOS Origin)",
-        icon=folium.Icon(color="red", icon="warning-sign"),
-    ).add_to(m)
-
-    # Primary Hospital Marker (Green)
-    folium.Marker(
-        [dest_lat, dest_lon],
-        popup=f"🏥 Recommended: {fac['name']}<br>Est. Time: {route['estimated_time_minutes']} min",
-        tooltip="Primary Hospital",
-        icon=folium.Icon(color="green", icon="plus"),
-    ).add_to(m)
-
-    # Route Polyline (Blue)
-    geometry = route.get("route_geometry", [])
-    if geometry:
-        folium.PolyLine(
-            locations=geometry,
-            color="#2A81CB",
-            weight=5,
-            opacity=0.85,
-            tooltip=f"Calculated Road Route: {route['distance_km']} km",
-        ).add_to(m)
-
-    # Alternative Hospital Markers (Orange)
-    for alt in alternatives:
-        afac = alt["facility"]
-        aroute = alt["route"]
-        folium.Marker(
-            [afac["latitude"], afac["longitude"]],
-            popup=f"🏥 Alt: {afac['name']}<br>Road Dist: {aroute['distance_km']} km",
-            tooltip=f"Alternative: {afac['name']}",
-            icon=folium.Icon(color="orange", icon="info-sign"),
-        ).add_to(m)
-
-    # Render folium map
-    st_folium(m, width=900, height=450)
-
-    # 3. Alternative Facilities Table
-    if alternatives:
-        st.markdown("#### Alternative Eligible Medical Facilities")
-        alt_rows = []
-        for a in alternatives:
-            afac = a["facility"]
-            aroute = a["route"]
-            alt_rows.append({
-                "Facility Name": afac["name"],
-                "Category": afac["category"].title(),
-                "Documented Emergency": "YES" if afac["has_documented_emergency"] else "Undocumented",
-                "Road Distance (km)": aroute["distance_km"],
-                "Est. Time (min)": aroute["estimated_time_minutes"],
-                "Ranking Reason": a["ranking_reason"],
-            })
-        st.table(alt_rows)
-
-    st.info(
-        "⚠️ **Safety Disclosure**: Ambulance fleet, routing replay, and hospital recommendations are simulated for demonstration. "
-        "No real emergency vehicle has been contacted, and hospital admission is not verified."
+    st.success(f"### Primary source-tagged hospital: {facility['name']}")
+    c1, c2, c3 = st.columns(3)
+    c1.metric("Calculated road distance", f"{route['distance_km']:.2f} km")
+    c2.metric("Static estimated travel time", f"~{route['estimated_time_minutes']:.1f} min")
+    c3.metric(
+        "Emergency tag",
+        "YES (details unverified)" if facility["has_documented_emergency"] else "Undocumented",
+    )
+    st.markdown(f"**Address:** {facility['address']}")
+    st.markdown(f"**Facility category:** {facility['category'].title()}")
+    st.markdown(
+        f"**Specialty tag/name hint (not clinically verified):** "
+        f"{facility['speciality'] or 'Not listed'}"
+    )
+    st.markdown(f"**Contact:** {facility['phone'] or 'Not listed in OSM'}")
+    st.markdown(f"**Ranking rationale:** {primary['ranking_reason']}")
+    if facility.get("source_url"):
+        st.markdown(f"**Source record:** [OpenStreetMap hospital record]({facility['source_url']})")
+    st.caption(
+        f"Hospital snapshot freshness: {facility.get('data_freshness') or 'Not supplied by source'}. "
+        "OSM emergency=yes does not establish 24/7 hours, staffing, trauma capability, "
+        "current readiness, bed availability or admission acceptance."
     )
 
-    return ranking_data
+    midpoint = route["route_geometry"][len(route["route_geometry"]) // 2]
+    route_map = folium.Map(location=midpoint, zoom_start=13, control_scale=True)
+    folium.Marker(
+        [sos_location.latitude, sos_location.longitude],
+        tooltip="SOS accident origin",
+        popup=f"Incident origin<br>Source: {sos_location.source}<br>{sos_location.location_name}",
+        icon=folium.Icon(color="red", icon="warning-sign"),
+    ).add_to(route_map)
+    folium.Marker(
+        [facility["latitude"], facility["longitude"]],
+        tooltip=facility["name"],
+        popup=f"{facility['name']}<br>{facility['address']}",
+        icon=folium.Icon(color="green", icon="plus-sign"),
+    ).add_to(route_map)
+    folium.PolyLine(
+        route["route_geometry"],
+        color="#1d4ed8",
+        weight=5,
+        opacity=0.9,
+        tooltip="Path on saved directed OpenStreetMap road graph",
+    ).add_to(route_map)
+
+    for alternative in ranking["alternatives"]:
+        alt = alternative["facility"]
+        folium.CircleMarker(
+            [alt["latitude"], alt["longitude"]],
+            radius=5,
+            tooltip=f"Alternative: {alt['name']}",
+            color="#f59e0b",
+            fill=True,
+        ).add_to(route_map)
+    st_folium(route_map, height=480, use_container_width=True, returned_objects=[])
+    st.markdown(f"[Open driving directions in Google Maps]({route['google_maps_url']})")
+    st.caption(f"© OpenStreetMap contributors. {route['travel_time_note']}")
+
+    if ranking["alternatives"]:
+        st.markdown("#### Alternative routable hospitals")
+        st.table([
+            {
+                "Hospital": item["facility"]["name"],
+                "Category": item["facility"]["category"],
+                "Road km": item["route"]["distance_km"],
+                "Estimated min": item["route"]["estimated_time_minutes"],
+                "Emergency tag": (
+                    "yes (details unverified)"
+                    if item["facility"]["has_documented_emergency"] else "undocumented"
+                ),
+                "Ranking explanation": item["ranking_reason"],
+            }
+            for item in ranking["alternatives"]
+        ])
+
+    st.info(
+        "Recommendation is based on the available OSM record and static road graph. "
+        "Clinical suitability, hospital readiness, opening status and acceptance must be confirmed by a human."
+    )
+    handoff = st.checkbox(
+        "I have reviewed the SOS coordinates, hospital source and route",
+        key="route-human-review",
+    )
+    if st.button("Prepare simulated ambulance handoff", disabled=not handoff):
+        st.warning(
+            "SIMULATION ONLY — route details are prepared for human review. "
+            "No 112/108 call was made, no ambulance was contacted or assigned, "
+            "and the hospital has not accepted a patient."
+        )
+    return ranking

@@ -1,75 +1,50 @@
-# Third Eye AI — System Architecture
+# THIRD EYE AI — Architecture
 
-## 1. Overview
-Third Eye AI is a focused, explainable incident analysis prototype combining three core deterministic disciplines:
-1. **Classical Computer Vision (CV)** — Deterministic image processing, enhancement, edge detection, and geometric vehicle candidate localization using OpenCV and NumPy.
-2. **Optical Character Recognition (OCR)** — Classical Indian registration plate localization, character segmentation, template matching against standardized character glyphs, and statutory format validation without neural networks or external OCR engines.
-3. **Natural Language Processing (NLP)** — Deterministic regular-expression and keyword-based incident extraction, vehicle categorization, injury/hazard tagging, urgency classification, and multi-source structured reporting.
+## Purpose
 
-All Machine Learning (ML), Deep Learning (DL), PyTorch, TorchVision, YOLO, ResNet, EasyOCR, neural ONNX models, and Retrieval-Augmented Generation (RAG) subsystems have been completely removed.
+A compact emergency incident analysis demonstration based on three deterministic AI disciplines—classical Computer Vision, classical template OCR, and rule-based NLP—supported by SOS location validation and conventional hospital road routing.
 
----
+## Processing and evidence flow
 
-## 2. Target Directory Structure
+    Optional incident image -> OpenCV image processing -> geometric candidate regions
+                             -> plate localization -> glyph segmentation -> template OCR
+    Caller incident text ----------------------------> rule-based NLP entities/urgency
+    SOS event / browser GPS / operator coordinates --> validated incident location
+    CV + OCR + NLP + SOS source details -------------> provenance-aware report
+    Validated SOS location + OSM hospital snapshot --> source-based hospital filter/ranker
+    SOS coordinates + hospital coordinates + OSM GraphML --> directed NetworkX road path
 
-```text
-THIRD-EYE-AI/
-├── app/
-│   ├── main.py                    # Streamlit dashboard entrypoint
-│   └── components/
-│       ├── cv_ui.py               # Section 1: CV image processing & candidate detection
-│       ├── ocr_ui.py              # Section 2: Indian plate template-based OCR
-│       ├── nlp_ui.py              # Section 3: NLP incident information extraction
-│       └── report_ui.py           # Section 4: Combined multi-source incident report
-│
-├── core/
-│   ├── cv/
-│   │   ├── image_processing.py    # Grayscale, CLAHE, blur, Canny, diagnostics
-│   │   ├── vehicle_localization.py# Edge density & contour morphology candidates
-│   │   ├── plate_localization.py  # Top-hat, Sobel gradients, aspect-ratio bounds
-│   │   └── visualization.py       # Box drawing & annotated canvas overlays
-│   │
-│   ├── ocr/
-│   │   ├── preprocessing.py       # Plate deskewing, bilateral filtering, binarization
-│   │   ├── character_segmentation.py # Connected-component / contour glyph segmentation
-│   │   ├── template_recognition.py# Alphanumeric template matching with positional priors
-│   │   ├── plate_validation.py    # Indian Motor Vehicles format validation (HSRP/BH)
-│   │   └── plate_reader.py        # End-to-end classical plate reading coordinator
-│   │
-│   └── nlp/
-│       ├── text_normalization.py  # Typo correction, whitespace & token normalization
-│       ├── entity_extraction.py   # Deterministic entity & keyword extraction
-│       ├── incident_analysis.py   # Incident type classification & urgency rules
-│       └── report_generation.py   # Multi-source structured report synthesis
-│
-├── data/
-│   ├── samples/                   # Sample road images and collision photos
-│   ├── sample_calls/              # Emergency transcript presets
-│   └── ocr_templates/             # 24x32 standard binary character templates (A-Z, 0-9)
-│
-├── tests/
-│   ├── test_cv.py                 # CV enhancement, diagnostics, localization tests
-│   ├── test_ocr.py                # Plate preprocessing, template matching, format tests
-│   ├── test_nlp.py                # Regex extraction, urgency, contradiction tests
-│   └── test_app.py                # Integration and Streamlit component tests
-│
-├── docs/
-│   ├── ARCHITECTURE.md            # System architecture and design
-│   ├── CV_DOCUMENTATION.md        # Computer Vision pipeline details
-│   ├── OCR_DOCUMENTATION.md       # Template OCR & plate validation details
-│   └── NLP_DOCUMENTATION.md       # Rule-based NLP extraction & urgency details
-│
-├── requirements.txt               # Minimal dependencies: streamlit, opencv-python, numpy, pillow, pytest
-└── README.md                      # Comprehensive user and demonstration documentation
-```
+## Technology boundaries
 
----
+- CV: OpenCV and NumPy only; geometric candidate boxes are not learned detections.
+- OCR: classical image processing, connected-component segmentation and fixed glyph templates. No neural OCR engine.
+- NLP: Python regex/keyword dictionaries. No trained language model.
+- Hospital and routing logic: conventional Python, NetworkX and Folium. These are supporting software systems, not additional AI models.
+- ML, DL, RAG, pretrained neural weights, PyTorch, TorchVision, EasyOCR, spaCy models and LLM integrations are excluded.
 
-## 3. Technology Stack and Boundaries
+## SOS provenance
 
-| Technology Area | Permitted Implementation | Strictly Prohibited |
-|---|---|---|
-| **Computer Vision** | OpenCV (v4.8+), NumPy array math, Canny edges, Otsu/adaptive thresholding, morphological closing/opening, contour analysis, bounding box geometry | YOLO, Faster R-CNN, ResNet, CNNs, ViT, Haar cascades, HOG/SVM, pretrained neural networks |
-| **OCR** | Top-hat/black-hat morphology, Sobel gradients, Hough line deskewing, connected-component segmentation, 24x32 normalized correlation + IoU template matching | EasyOCR, Tesseract, CRAFT, CRNN, Transformer OCR, neural character classifiers |
-| **NLP** | Python standard library `re`, string parsing, keyword dictionaries, transparent urgency decision trees | spaCy models, HuggingFace transformers, BERT, LLMs, Ollama, vector databases, dense embeddings |
-| **Interface** | Streamlit single-page application with 4 focused tabs | Unnecessary routing maps, hospital dispatch simulation, live GPS tracking |
+Supported location sources:
+1. Authenticated provider adapter payload (GPS_SOS_PAYLOAD is reserved for a future trusted integration; none is connected by this prototype).
+2. Imported SOS JSON file/text (SOS_JSON_IMPORT; sender is not authenticated by this application).
+3. Explicit browser geolocation after the user clicks the capture button and grants permission (DEVICE_GEOLOCATION).
+4. Operator-verified incident coordinates (OPERATOR_MANUAL_SELECTION).
+5. Demonstration-only coordinates (SIMULATED_DEMO).
+
+Coordinates are range-checked; 0,0 is rejected. Accuracy and timestamp are retained only when supplied. Imported event payloads must include their event timestamp; locations older than 15 minutes are blocked from routing. The browser/device location is not silently used as the incident location unless the user explicitly selects it and confirms that the device is at the scene.
+
+## Hospital selection and routing
+
+The dated hospital cache is from OpenStreetMap. Only named hospital-tagged facilities are considered; clinics and outpatient services are excluded. Specialty words and tags can trigger transparent down-ranking, but do not prove clinical capability. The emergency tag is displayed as source data only.
+
+The routing engine loads a directed GraphML graph, finds the nearest node to the SOS origin and each hospital, and computes the minimum-travel-time path using travel_time edge weights. Parallel edges are compared by their travel-time value. Off-network connectors are estimated using a stated fixed connector speed. The system refuses to show a route if graph coverage or a directed path is missing; no Haversine road-distance fallback is presented.
+
+Static route-time estimates are not live traffic or an ambulance ETA. Hospital acceptance, bed availability, emergency department staffing and current readiness remain unknown unless a trusted live integration supplies them.
+
+## User interface
+
+The five tabs are Computer Vision, Plate OCR, NLP & Evidence, SOS & Hospital Route, and Combined Report. SOS routing remains accessible even when the operator has not uploaded an image. Missing CV evidence remains NOT RUN rather than being fabricated.
+
+## Safety
+
+The application prepares information for human review. It does not contact 112/108, issue a real dispatch, reserve a bed, or assert that an ambulance is en route. Human verification is required before real emergency action.

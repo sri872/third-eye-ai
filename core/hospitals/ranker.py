@@ -1,17 +1,31 @@
-"""Intelligent Hospital Selection and Multi-Tier Ranking.
+"""Conservative suitability-first ranking of road-routable hospitals."""
+from __future__ import annotations
 
-Selects and ranks nearest suitable hospitals from validated SOS coordinates
-based on documented capabilities and road-network travel time.
-"""
+from typing import Any, Optional
 
-from typing import List, Dict, Any, Optional
 from core.sos.location import SOSLocation
 from core.hospitals.catalog import HospitalCatalog
-from core.routing.router import RoadNetworkRouter
+from core.routing.router import RoadNetworkRouter, RouteUnavailableError
+
+
+_SPECIALTY_TRIGGERS = {
+    "eye": ("eye", "vision", "cornea", "ophthalm"),
+    "dental": ("dental", "tooth", "teeth", "jaw"),
+    "maternity": ("pregnant", "pregnancy", "maternity", "labor", "delivery"),
+    "children": ("child", "children", "infant", "baby", "pediatric", "kid"),
+    "cardiac": ("heart", "cardiac", "chest pain", "angina"),
+}
+_SPECIALTY_MARKERS = {
+    "eye": ("eye", "ophthalm", "netra"),
+    "dental": ("dental", "dentist"),
+    "maternity": ("maternity", "gynaec", "gynec", "obstetric"),
+    "children": ("children", "paediatric", "pediatric", "neonatal"),
+    "cardiac": ("heart care", "cardiac", "cardiology"),
+}
 
 
 class HospitalRanker:
-    """Ranks hospitals primarily by documented suitability and secondary by road travel time."""
+    """Ranks source-tagged hospitals using documented suitability then road ETA."""
 
     def __init__(
         self,
@@ -21,100 +35,145 @@ class HospitalRanker:
         self.catalog = catalog or HospitalCatalog()
         self.router = router or RoadNetworkRouter()
 
+    @staticmethod
+    def _specialty_penalty(facility: dict[str, Any], incident_text: str) -> tuple[int, str]:
+        specialty = str(facility.get("speciality") or "").lower()
+        name = str(facility.get("name") or "").lower()
+        hint = specialty + " " + name
+        incident = (incident_text or "").lower()
+        for category, markers in _SPECIALTY_MARKERS.items():
+            if any(marker in hint for marker in markers):
+                if any(trigger in incident for trigger in _SPECIALTY_TRIGGERS[category]):
+                    return 0, f"Possible '{category}' name/source hint matches the caller report; capability is not verified."
+                return 1, (
+                    f"Down-ranked: name/source contains a possible '{category}' specialty hint "
+                    "not mentioned in the caller description. This is not confirmation of capability."
+                )
+        return 0, "No single-specialty name/source hint conflicts with the caller description."
+
     def rank_hospitals(
         self,
         sos_location: SOSLocation,
         urgency_level: str = "HIGH",
         max_recommendations: int = 5,
-    ) -> Dict[str, Any]:
-        """Rank eligible facilities from validated SOS location.
-
-        Args:
-            sos_location: Validated incident SOSLocation.
-            urgency_level: 'CRITICAL', 'HIGH', 'MEDIUM', or 'LOW'.
-            max_recommendations: Number of ranked facilities to return.
-
-        Returns:
-            Dictionary with primary recommendation, alternative hospitals, and ranking metadata.
-        """
-        if not sos_location or not sos_location.latitude or not sos_location.longitude:
+        incident_text: str = "",
+    ) -> dict[str, Any]:
+        """Return nearest routable source-tagged hospitals; no straight-line fallback."""
+        if sos_location is None:
             return {
-                "error": "No valid accident SOS location provided. Coordinates are required for hospital routing.",
+                "error": "A validated incident SOS location is required.",
+                "primary_recommendation": None,
+                "alternatives": [],
+            }
+        try:
+            lat, lon = float(sos_location.latitude), float(sos_location.longitude)
+        except (TypeError, ValueError):
+            return {
+                "error": "SOS coordinates are invalid.",
+                "primary_recommendation": None,
+                "alternatives": [],
+            }
+        if not (-90 <= lat <= 90 and -180 <= lon <= 180) or (abs(lat) < 0.0001 and abs(lon) < 0.0001):
+            return {
+                "error": "SOS coordinates are outside geographic limits or equal to invalid default 0,0.",
+                "primary_recommendation": None,
+                "alternatives": [],
+            }
+        if sos_location.is_stale:
+            return {
+                "error": "SOS location is older than 15 minutes. Capture or confirm a fresh accident location.",
                 "primary_recommendation": None,
                 "alternatives": [],
             }
 
-        start_lat = sos_location.latitude
-        start_lon = sos_location.longitude
-
-        # For CRITICAL or HIGH urgency, prioritize hospital category
-        require_hospital = urgency_level in ("CRITICAL", "HIGH")
-        candidates = self.catalog.get_eligible_facilities(require_hospital_tier=require_hospital)
+        candidates = self.catalog.get_eligible_facilities(require_hospital_tier=True)
+        candidates = [
+            item for item in candidates
+            if item.get("category") == "hospital"
+            and item.get("name")
+            and item.get("latitude") is not None
+            and item.get("longitude") is not None
+        ]
         if not candidates:
-            # Fallback to all eligible if no strict hospitals available
-            candidates = self.catalog.get_eligible_facilities(require_hospital_tier=False)
+            return {
+                "error": "The OSM snapshot contains no source-tagged hospital records.",
+                "primary_recommendation": None,
+                "alternatives": [],
+            }
 
-        scored_hospitals: List[Dict[str, Any]] = []
-
-        for cand in candidates:
-            c_lat = cand["latitude"]
-            c_lon = cand["longitude"]
-
-            # Calculate road route starting strictly from SOS coordinates
-            route_res = self.router.calculate_route(start_lat, start_lon, c_lat, c_lon)
-
-            # Scoring:
-            # Tier 1 (Suitability): documented emergency tag 'yes' gives priority bonus
-            # Tier 2 (Category): hospital (0) vs clinic (+5 min penalty)
-            # Tier 3 (Road Time): travel time in minutes
-            suitability_score = 0.0
-            if cand.get("has_documented_emergency"):
-                suitability_score += 100.0  # Documented emergency tag priority
-            if cand.get("category") == "hospital":
-                suitability_score += 50.0  # Full hospital priority
-
-            # Adjusted cost = Road travel time - suitability bonus weight
-            # Lower adjusted cost is better
-            travel_time = route_res["estimated_time_minutes"]
-            adjusted_cost = travel_time - (suitability_score * 0.1)
-
-            # Build ranking reason
-            reasons = []
-            if cand.get("has_documented_emergency"):
-                reasons.append("Documented 24/7 Emergency Services")
-            if cand.get("category") == "hospital":
-                reasons.append("Full Hospital Tier")
-            else:
-                reasons.append("Clinic / Healthcare Center")
-            reasons.append(f"Road Distance: {route_res['distance_km']} km (~{travel_time} mins)")
-
-            scored_hospitals.append({
-                "facility": cand,
-                "route": route_res,
-                "suitability_score": suitability_score,
-                "adjusted_cost": round(adjusted_cost, 2),
+        ranked: list[dict[str, Any]] = []
+        unroutable = []
+        for facility in candidates:
+            try:
+                route = self.router.calculate_route(
+                    lat, lon, facility["latitude"], facility["longitude"]
+                )
+            except (RouteUnavailableError, ValueError) as exc:
+                unroutable.append({"facility": facility["name"], "reason": str(exc)})
+                continue
+            if not route.get("is_road_network"):
+                unroutable.append({
+                    "facility": facility["name"],
+                    "reason": "A verified road-network route was not returned.",
+                })
+                continue
+            specialty_penalty, specialty_reason = self._specialty_penalty(
+                facility, incident_text
+            )
+            emergency_tag_priority = 0 if facility.get("has_documented_emergency") else 1
+            reasons = [
+                "Source-tagged hospital (OpenStreetMap)",
+                specialty_reason,
+                (
+                    "OSM emergency=yes tag present (hours and readiness unverified)"
+                    if facility.get("has_documented_emergency")
+                    else "Emergency service capability undocumented in OSM"
+                ),
+                f"Directed road-network distance {route['distance_km']:.2f} km; "
+                f"static estimated travel time {route['estimated_time_minutes']:.1f} min",
+            ]
+            ranked.append({
+                "facility": facility,
+                "route": route,
+                "specialty_penalty": specialty_penalty,
+                "emergency_tag_priority": emergency_tag_priority,
                 "ranking_reason": " | ".join(reasons),
             })
 
-        # Sort: Highest suitability score first, then lowest travel time
-        scored_hospitals.sort(
-            key=lambda x: (-x["suitability_score"], x["route"]["estimated_time_minutes"])
-        )
-
-        if not scored_hospitals:
+        ranked.sort(key=lambda item: (
+            item["specialty_penalty"],
+            item["emergency_tag_priority"],
+            item["route"]["estimated_time_minutes"],
+            item["route"]["distance_km"],
+            item["facility"]["name"].lower(),
+        ))
+        if not ranked:
             return {
-                "error": "No eligible hospitals found within corridor.",
+                "error": (
+                    "No hospital is reachable from this SOS location on the saved directed "
+                    "road graph. No straight-line estimate has been represented as a road route."
+                ),
                 "primary_recommendation": None,
                 "alternatives": [],
+                "unroutable_hospitals": unroutable,
             }
 
-        primary = scored_hospitals[0]
-        alternatives = scored_hospitals[1:max_recommendations]
-
+        count = max(1, int(max_recommendations))
         return {
             "sos_location": sos_location.to_dict(),
-            "primary_recommendation": primary,
-            "alternatives": alternatives,
-            "total_candidates_evaluated": len(scored_hospitals),
+            "primary_recommendation": ranked[0],
+            "alternatives": ranked[1:count],
+            "total_candidates_evaluated": len(ranked),
+            "total_hospitals_in_snapshot": len(candidates),
+            "unroutable_hospitals": unroutable,
             "urgency_level": urgency_level,
+            "ranking_method": (
+                "Suitable source-tagged hospital first; specialty mismatch penalty; "
+                "documented emergency tag as secondary evidence; then static road-network time."
+            ),
+            "limitations": (
+                "OpenStreetMap data may be incomplete. Emergency department capability, "
+                "staffing, opening hours, hospital acceptance and bed availability are not verified. "
+                "Route times use static graph estimates, not live traffic."
+            ),
         }

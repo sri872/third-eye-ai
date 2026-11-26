@@ -1,101 +1,168 @@
-"""Tests for Hospital Intelligence and Road Network Routing.
+"""Hospital catalog and directed road-routing regression tests."""
+from __future__ import annotations
 
-Verifies hospital catalog capability extraction, NetworkX road routing,
-distance/time calculation, and multi-tier hospital ranking.
-"""
-
+import networkx as nx
 import pytest
-from core.sos.location import SOSLocation
+
+from core.sos.location import SOURCE_SIMULATED_DEMO, create_sos_location
 from core.hospitals.catalog import HospitalCatalog
-from core.routing.router import RoadNetworkRouter
 from core.hospitals.ranker import HospitalRanker
+from core.routing.router import RoadNetworkRouter, RouteUnavailableError
 
 
-@pytest.fixture
-def catalog():
-    return HospitalCatalog()
+def make_graph():
+    graph = nx.MultiDiGraph()
+    graph.add_node("a", x=75.7700, y=31.2200)
+    graph.add_node("b", x=75.7710, y=31.2200)
+    graph.add_node("c", x=75.7720, y=31.2200)
+    graph.add_node("d", x=75.7700, y=31.2220)
+    graph.add_edge("a", "b", key="ab", length=100.0, travel_time=10.0)
+    graph.add_edge("b", "c", key="bc-fast", length=200.0, travel_time=20.0)
+    graph.add_edge("b", "c", key="bc-short-slow", length=150.0, travel_time=50.0)
+    graph.add_edge("a", "d", key="ad", length=500.0, travel_time=50.0)
+    graph.add_edge("d", "c", key="dc", length=500.0, travel_time=50.0)
+    return graph
 
 
-@pytest.fixture
-def router():
-    return RoadNetworkRouter()
+def make_sos(lat=31.2200, lon=75.7700):
+    location, message = create_sos_location(lat, lon, source=SOURCE_SIMULATED_DEMO)
+    assert location is not None, message
+    return location
 
 
-@pytest.fixture
-def ranker(catalog, router):
-    return HospitalRanker(catalog=catalog, router=router)
-
-
-@pytest.fixture
-def sos_nh44():
-    return SOSLocation(
-        latitude=31.2142,
-        longitude=75.7785,
-        location_name="NH-44 Sugar Mill",
-    )
-
-
-def test_catalog_loads_and_does_not_invent_capabilities(catalog):
-    """Verify hospital catalog loads facilities and does not invent capabilities from names."""
+def test_catalog_loads_only_source_tagged_hospitals():
+    catalog = HospitalCatalog()
     facilities = catalog.get_eligible_facilities()
-    assert len(facilities) > 50
-
-    for f in facilities:
-        assert "name" in f and f["name"]
-        assert "latitude" in f and "longitude" in f
-        assert f["category"] in ("hospital", "clinic", "healthcare_facility")
-        # Check that trauma is not invented if emergency tag is not yes
-        if not f["has_documented_emergency"]:
-            assert f["emergency_tag"] != "yes"
+    assert len(facilities) > 0
+    assert all(item["category"] == "hospital" for item in facilities)
+    assert all(item["source_url"].startswith("https://www.openstreetmap.org/") for item in facilities)
+    assert all("India" in item["address"] or "Address not listed" in item["address"] for item in facilities)
+    for item in facilities:
+        assert item["has_documented_emergency"] is (item["emergency_tag"] == "yes")
 
 
-def test_road_network_routing(router, sos_nh44):
-    """Verify NetworkX calculates road route starting from SOS coordinates."""
-    # Route to Civil Hospital Phagwara (~31.2177, 75.7725)
-    dest_lat = 31.2177
-    dest_lon = 75.7725
+def test_road_route_uses_directed_graph_and_edge_travel_time():
+    router = RoadNetworkRouter(graph=make_graph())
+    route = router.calculate_route(31.2200, 75.7700, 31.2200, 75.7720)
+    assert route["status"] == "ROAD_NETWORK_ROUTE_FOUND"
+    assert route["is_road_network"] is True
+    assert route["route_geometry"][0] == (31.2200, 75.7700)
+    assert route["route_geometry"][-1] == (31.2200, 75.7720)
+    assert route["road_graph_distance_km"] == pytest.approx(0.3)
+    assert route["estimated_time_minutes"] == pytest.approx(0.5, abs=0.1)
+    assert route["route_source"] == "SAVED_OPENSTREETMAP_DIRECTED_GRAPH"
 
-    route = router.calculate_route(
-        start_lat=sos_nh44.latitude,
-        start_lon=sos_nh44.longitude,
-        dest_lat=dest_lat,
-        dest_lon=dest_lon,
+
+def test_road_router_does_not_reverse_one_way_edges():
+    router = RoadNetworkRouter(graph=make_graph())
+    with pytest.raises(RouteUnavailableError, match="No directed road path"):
+        router.calculate_route(31.2200, 75.7720, 31.2200, 75.7700)
+
+
+def test_road_router_rejects_coordinates_outside_graph_coverage():
+    router = RoadNetworkRouter(graph=make_graph(), max_snap_distance_m=500)
+    with pytest.raises(RouteUnavailableError, match="outside saved road-graph coverage"):
+        router.calculate_route(25.0, 80.0, 31.2200, 75.7720)
+
+
+def test_ranker_filters_clinics_and_downranks_unmatched_specialty_hints():
+    class FakeCatalog:
+        def get_eligible_facilities(self, require_hospital_tier=True):
+            return [
+                {
+                    "id": "hospital-1", "name": "General Hospital",
+                    "latitude": 31.2200, "longitude": 75.7720,
+                    "category": "hospital", "has_documented_emergency": False,
+                    "speciality": None, "emergency_tag": None, "phone": None,
+                    "address": "Test Road, Phagwara, Punjab, India",
+                },
+                {
+                    "id": "hospital-2", "name": "Eye Hospital",
+                    "latitude": 31.2200, "longitude": 75.7720,
+                    "category": "hospital", "has_documented_emergency": True,
+                    "speciality": "ophthalmology", "emergency_tag": "yes", "phone": None,
+                    "address": "Test Road, Phagwara, Punjab, India",
+                },
+                {
+                    "id": "clinic-1", "name": "Dental Clinic",
+                    "latitude": 31.2200, "longitude": 75.7720,
+                    "category": "clinic", "has_documented_emergency": False,
+                    "speciality": "dental", "emergency_tag": None, "phone": None,
+                    "address": "Test Road, Phagwara, Punjab, India",
+                },
+            ]
+
+    class FakeRouter:
+        def calculate_route(self, start_lat, start_lon, dest_lat, dest_lon):
+            return {
+                "is_road_network": True,
+                "status": "ROAD_NETWORK_ROUTE_FOUND",
+                "distance_km": 1.0,
+                "estimated_time_minutes": 2.0,
+                "google_maps_url": "https://maps.example/route",
+                "route_source": "TEST_GRAPH",
+            }
+
+    ranker = HospitalRanker(catalog=FakeCatalog(), router=FakeRouter())
+    result = ranker.rank_hospitals(make_sos(), incident_text="two cars collided on highway")
+    assert result["primary_recommendation"]["facility"]["name"] == "General Hospital"
+    assert all(
+        item["facility"]["category"] == "hospital"
+        for item in [result["primary_recommendation"], *result["alternatives"]]
     )
-    assert route["status"] in ("ROAD_NETWORK_ROUTE_FOUND", "ROUTING_FALLBACK_HAVERSINE")
-    assert route["distance_km"] > 0.1
-    assert route["estimated_time_minutes"] > 0.1
-    assert len(route["route_geometry"]) >= 2
-    # First point of route geometry must be the SOS origin
-    assert route["route_geometry"][0] == (sos_nh44.latitude, sos_nh44.longitude)
-    # External Google Maps URL must contain origin and destination
-    assert f"origin={sos_nh44.latitude:.5f},{sos_nh44.longitude:.5f}" in route["google_maps_url"]
 
 
-def test_hospital_ranking_prioritizes_documented_emergency(ranker, sos_nh44):
-    """Verify hospital ranking prioritizes documented emergency services."""
-    ranking = ranker.rank_hospitals(sos_nh44, urgency_level="CRITICAL", max_recommendations=4)
-    assert ranking["primary_recommendation"] is not None
+def test_ranker_skips_hospital_without_a_directed_road_route():
+    class FakeCatalog:
+        def get_eligible_facilities(self, require_hospital_tier=True):
+            return [
+                {
+                    "id": "reachable", "name": "Reachable Hospital",
+                    "latitude": 31.22, "longitude": 75.77, "category": "hospital",
+                    "has_documented_emergency": False, "speciality": None,
+                    "emergency_tag": None, "phone": None, "address": "Phagwara, India",
+                },
+                {
+                    "id": "unreachable", "name": "Unreachable Hospital",
+                    "latitude": 31.23, "longitude": 75.78, "category": "hospital",
+                    "has_documented_emergency": False, "speciality": None,
+                    "emergency_tag": None, "phone": None, "address": "Phagwara, India",
+                },
+            ]
 
-    primary = ranking["primary_recommendation"]
-    fac = primary["facility"]
-    route = primary["route"]
+    class FakeRouter:
+        def calculate_route(self, start_lat, start_lon, dest_lat, dest_lon):
+            if dest_lat > 31.225:
+                raise RouteUnavailableError("No directed road path")
+            return {
+                "is_road_network": True,
+                "distance_km": 1.2,
+                "estimated_time_minutes": 3.0,
+                "google_maps_url": "https://maps.example/route",
+                "route_source": "TEST_GRAPH",
+            }
 
-    # Primary recommendation must be a valid facility
-    assert fac["name"]
-    assert route["distance_km"] > 0
-    assert route["estimated_time_minutes"] > 0
-    assert "ranking_reason" in primary
-
-    # Alternatives must be listed
-    alternatives = ranking["alternatives"]
-    assert len(alternatives) >= 1
-    for alt in alternatives:
-        assert alt["facility"]["name"]
-        assert alt["route"]["distance_km"] > 0
+    result = HospitalRanker(
+        catalog=FakeCatalog(), router=FakeRouter()
+    ).rank_hospitals(make_sos())
+    assert result["primary_recommendation"]["facility"]["name"] == "Reachable Hospital"
+    assert result["unroutable_hospitals"][0]["facility"] == "Unreachable Hospital"
 
 
-def test_ranking_rejects_missing_sos_coordinates(ranker):
-    """Verify ranker rejects null or empty SOS location without guessing coordinates."""
-    res = ranker.rank_hospitals(None)
-    assert "error" in res
-    assert res["primary_recommendation"] is None
+def test_ranker_blocks_stale_sos_location():
+    old = "2020-01-01T00:00:00+00:00"
+    location, message = create_sos_location(
+        31.22, 75.77, timestamp=old, source=SOURCE_SIMULATED_DEMO
+    )
+    assert location is not None, message
+    result = HospitalRanker(
+        catalog=object(), router=object()
+    ).rank_hospitals(location)
+    assert result["error"].startswith("SOS location is older than 15 minutes")
+    assert result["primary_recommendation"] is None
+
+
+def test_ranker_rejects_missing_sos_coordinates():
+    result = HospitalRanker(catalog=object(), router=object()).rank_hospitals(None)
+    assert "error" in result
+    assert result["primary_recommendation"] is None

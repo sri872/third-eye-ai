@@ -1,12 +1,8 @@
-"""Structured Incident Report Generation.
+"""Structured incident report with explicit evidence and location provenance."""
+from __future__ import annotations
 
-Fuses classical CV detections, OCR readings, rule-based NLP extractions,
-SOS GPS coordinates, and deterministic hospital routing into a unified,
-source-separated forensic report.
-"""
-
-from typing import Dict, Any, Optional
 from datetime import datetime
+from typing import Any, Dict, Optional
 
 
 def generate_structured_report(
@@ -18,155 +14,140 @@ def generate_structured_report(
     hospital_routing_result: Optional[Dict[str, Any]] = None,
     accident_assessment: Optional[Dict[str, Any]] = None,
 ) -> Dict[str, Any]:
-    """Generate a combined, source-separated incident report.
-
-    Every field is tagged with an explicit provenance label:
-    [REAL CV], [CLASSICAL OCR], [CALLER REPORTED], [SOS GPS], [HOSPITAL ROUTE], [COMPUTED COMPARISON].
-    """
-    timestamp_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-
-    # 1. CV Evidence
-    cv_boxes = cv_candidates if cv_candidates is not None else []
-    cv_summary = {
-        "source": "REAL CV (CLASSICAL IMAGE PROCESSING)",
-        "candidate_vehicle_count": len(cv_boxes),
-        "candidates": cv_boxes,
-        "diagnostics": cv_diagnostics or {},
-        "notes": "Candidate regions localized via classical contour & edge morphology. Not a learned detector.",
-    }
-
-    # 2. OCR Evidence
-    ocr_res = plate_ocr_result or {}
-    ocr_summary = {
-        "source": "CLASSICAL OCR (TEMPLATE MATCHING)",
-        "plate_status": ocr_res.get("status", "NOT_PROCESSED"),
-        "raw_text": ocr_res.get("raw_text", ""),
-        "normalized_plate": ocr_res.get("normalized_text", ""),
-        "mean_similarity": ocr_res.get("mean_similarity", 0.0),
-        "is_verified": ocr_res.get("is_verified", False),
-        "validation_details": ocr_res.get("validation", {}),
-    }
-
-    # 3. NLP Evidence
+    """Build a source-labelled report; missing evidence stays NOT DETERMINED."""
+    generated_at = datetime.now().astimezone().isoformat(timespec="seconds")
+    cv_diagnostics = cv_diagnostics or {}
+    cv_candidates = cv_candidates or []
+    ocr = plate_ocr_result or {}
     nlp = nlp_analysis or {}
-    entities = nlp.get("entities", {})
-    nlp_summary = {
-        "source": "CALLER REPORTED (DETERMINISTIC NLP RULES)",
-        "reported_vehicles": entities.get("vehicles", []),
-        "total_vehicles_reported": entities.get("total_vehicles_reported", 0),
-        "reported_locations": entities.get("locations", []),
-        "reported_injuries": entities.get("injuries", []),
-        "reported_hazards": entities.get("hazards", []),
-        "urgency_level": nlp.get("urgency_level", "UNKNOWN"),
-        "urgency_reason": nlp.get("urgency_reason", ""),
-        "incident_type": nlp.get("primary_incident_type", "UNKNOWN"),
-        "contradictions": nlp.get("contradictions_detected", []),
-    }
-
-    # 4. SOS Location & Hospital Routing
-    sos_dict = sos_location.to_dict() if hasattr(sos_location, "to_dict") else (sos_location or {})
-    primary_hosp = hospital_routing_result.get("primary_recommendation") if hospital_routing_result else None
-
-    # 5. Multimodal Accident Evidence Assessment
+    entities = nlp.get("entities") or {}
     assessment = accident_assessment or {}
+    sos = (
+        sos_location.to_dict()
+        if hasattr(sos_location, "to_dict")
+        else (sos_location or {})
+    )
+    routing = hospital_routing_result or {}
+    primary = routing.get("primary_recommendation")
+    visual_count = len(cv_candidates)
+    visual_status = visual_count if cv_diagnostics else "NOT RUN"
 
-    # 6. Computed Cross-Verification
-    visual_count = len(cv_boxes)
     caller_count = entities.get("total_vehicles_reported", 0)
-
-    if caller_count > 0 and visual_count > 0:
-        if visual_count == caller_count:
-            count_consistency = f"AGREED: Visual candidate count ({visual_count}) matches caller report ({caller_count})."
-        else:
-            count_consistency = f"DISCREPANCY: Visual candidate count ({visual_count}) differs from caller report ({caller_count})."
+    if caller_count and cv_diagnostics:
+        comparison = "MATCH" if caller_count == visual_count else "DIFFERENCE"
+        count_comparison = (
+            f"{comparison}: {visual_count} geometric CV candidate region(s) versus "
+            f"{caller_count} caller-reported vehicle(s). Candidate regions are not confirmed vehicles."
+        )
     else:
-        count_consistency = "UNVERIFIED: Insufficient visual or caller vehicle count to perform comparison."
+        count_comparison = (
+            "NOT DETERMINED: visual or caller-reported vehicle count is missing."
+        )
 
-    cross_check = {
-        "source": "COMPUTED COMPARISON",
-        "vehicle_count_comparison": count_consistency,
-        "human_review_required": True,
-        "human_review_reason": "Automated classical screening requires human operator verification before emergency dispatch.",
-    }
-
-    # 7. Build Markdown summary text
-    md_lines = [
-        "# THIRD EYE AI — STRUCTURED INCIDENT & FORENSIC REPORT",
-        f"**Generated**: {timestamp_str} | **Architecture**: Classical CV + Template OCR + Rule NLP + Road Routing",
+    lines = [
+        "# THIRD EYE AI — INCIDENT AND FORENSIC REPORT",
+        f"Generated: {generated_at}",
         "",
-        "---",
+        "## 1. Computer Vision evidence [REAL CV] [CLASSICAL HEURISTICS]",
+        f"- Geometric vehicle candidate regions: {visual_status}",
+        f"- Image dimensions: {cv_diagnostics.get('width', 'NOT DETERMINED')} × {cv_diagnostics.get('height', 'NOT DETERMINED')}",
+        f"- Lighting: {cv_diagnostics.get('lighting_condition', 'NOT DETERMINED')}",
+        f"- Sharpness diagnostic: {cv_diagnostics.get('sharpness_laplacian_var', 'NOT DETERMINED')}",
+        "- Limitation: rectangular candidate proposals are not proof of a vehicle or collision.",
         "",
-        "## 1. Visual Computer Vision Evidence `[REAL CV]`",
-        f"- **Candidate Vehicle Regions Localized**: {len(cv_boxes)}",
-        f"- **Image Dimensions**: {cv_diagnostics.get('width', 'N/A')}x{cv_diagnostics.get('height', 'N/A')}",
-        f"- **Lighting Condition**: {cv_diagnostics.get('lighting_condition', 'N/A')}",
-        f"- **Clarity / Sharpness Metric**: {cv_diagnostics.get('clarity_assessment', 'N/A')} (Laplacian: {cv_diagnostics.get('sharpness_laplacian_var', 'N/A')})",
+        "## 2. Number-plate OCR [CLASSICAL OCR]",
+        f"- Status: {ocr.get('status', 'NOT RUN')}",
+        f"- Raw recognized text: {ocr.get('raw_text') or 'NOT READABLE'}",
+        f"- Normalized candidate: {ocr.get('normalized_text') or 'NOT DETERMINED'}",
+        f"- Mean template similarity: {ocr.get('mean_similarity', 'NOT DETERMINED')}",
+        f"- Format validation: {(ocr.get('validation') or {}).get('notes', 'NOT DETERMINED')}",
+        "- Similarity is not a calibrated probability; uncertain characters are not guessed.",
         "",
-        "## 2. Number Plate OCR Findings `[CLASSICAL OCR]`",
-        f"- **Plate Verification Status**: `{ocr_summary['plate_status']}`",
-        f"- **Raw OCR Candidates**: `{ocr_summary['raw_text'] or 'NONE'}`",
-        f"- **Normalized Registration Number**: `{ocr_summary['normalized_plate'] or 'NONE'}`",
-        f"- **Template Mean Similarity**: `{ocr_summary['mean_similarity']}` (Threshold: 0.70)",
-        f"- **State Jurisdiction**: {ocr_summary['validation_details'].get('state_name', 'Not Determined')}",
+        "## 3. Caller NLP [CALLER REPORTED]",
+        f"- Incident type: {nlp.get('primary_incident_type', 'NOT DETERMINED')}",
+        f"- Rule-based urgency: {nlp.get('urgency_level', 'NOT DETERMINED')}",
+        f"- Urgency rationale: {nlp.get('urgency_reason', 'NOT DETERMINED')}",
+        f"- Vehicles: {entities.get('vehicles') or 'None extracted'}",
+        f"- Locations: {entities.get('locations') or 'None extracted'}",
+        f"- Injuries: {entities.get('injuries') or 'None extracted'}",
+        f"- Hazards: {entities.get('hazards') or 'None extracted'}",
+        f"- Transcript contradictions: {nlp.get('contradictions_detected') or 'None detected by current rules'}",
         "",
-        "## 3. Caller-Reported Incident Analysis `[CALLER REPORTED]`",
-        f"- **Primary Incident Classification**: `{nlp_summary['incident_type']}`",
-        f"- **Determined Urgency**: `{nlp_summary['urgency_level']}`",
-        f"- **Urgency Rationale**: {nlp_summary['urgency_reason']}",
-        f"- **Reported Locations**: {', '.join(nlp_summary['reported_locations']) if nlp_summary['reported_locations'] else 'None stated'}",
-        f"- **Reported Vehicles**: {len(nlp_summary['reported_vehicles'])} ({nlp_summary['total_vehicles_reported']} total units)",
-        f"- **Reported Injuries**: {len(nlp_summary['reported_injuries'])} items ({', '.join(i['keyword'] for i in nlp_summary['reported_injuries']) if nlp_summary['reported_injuries'] else 'None reported'})",
-        f"- **Reported Hazards**: {len(nlp_summary['reported_hazards'])} items ({', '.join(h['keyword'] for h in nlp_summary['reported_hazards']) if nlp_summary['reported_hazards'] else 'None reported'})",
+        "## 4. Accident evidence assessment [DETERMINISTIC HEURISTIC]",
+        f"- Category: {assessment.get('assessment_category', 'NOT DETERMINED')}",
+        f"- Rationale: {assessment.get('rationale', 'No image-based assessment was performed.')}",
+        "- Human review required: YES",
         "",
-        "## 4. Accident Evidence Assessment `[DETERMINISTIC FUSION]`",
-        f"- **Assessment Category**: `{assessment.get('assessment_category', 'NOT_EVALUATED')}`",
-        f"- **Confidence Level**: `{assessment.get('confidence_level', 'N/A')}`",
-        f"- **Assessment Rationale**: {assessment.get('rationale', 'N/A')}",
-        f"- **Maximum Candidate Box IoU**: {assessment.get('max_vehicle_iou', 0.0)}",
+        "## 5. Incident location [SOS GPS]",
+        f"- Coordinates: {sos.get('latitude', 'NOT SUPPLIED')}, {sos.get('longitude', 'NOT SUPPLIED')}",
+        f"- Source: {sos.get('source', 'NOT SUPPLIED')}",
+        f"- Accuracy: {sos.get('accuracy_meters', 'NOT SUPPLIED')} metres",
+        f"- Timestamp: {sos.get('timestamp', 'NOT SUPPLIED')}",
+        f"- Stale: {sos.get('is_stale', 'NOT DETERMINED')}",
         "",
-        "## 5. SOS Incident Location `[SOS GPS]`",
-        f"- **Incident Coordinates**: {sos_dict.get('latitude', 'N/A')}°N, {sos_dict.get('longitude', 'N/A')}°E",
-        f"- **Location Source**: `{sos_dict.get('source', 'UNSPECIFIED')}`",
-        f"- **GPS Accuracy**: ±{sos_dict.get('accuracy_meters', 'N/A')} meters",
-        f"- **Location Timestamp**: {sos_dict.get('timestamp', 'N/A')}",
-        "",
-        "## 6. Nearest Suitable Hospital & Emergency Route `[HOSPITAL ROUTE]`",
+        "## 6. Hospital recommendation and route [HOSPITAL ROUTE] [OPENSTREETMAP / NETWORKX]",
     ]
 
-    if primary_hosp:
-        fac = primary_hosp["facility"]
-        route = primary_hosp["route"]
-        md_lines.extend([
-            f"- **Primary Recommended Facility**: **{fac['name']}**",
-            f"- **Facility Category**: {fac['category'].title()} | Emergency Tag: {'YES (24/7)' if fac['has_documented_emergency'] else 'Undocumented'}",
-            f"- **Road Network Distance**: **{route['distance_km']} km** (Est. travel time: ~{route['estimated_time_minutes']} min)",
-            f"- **Facility Address**: {fac['address']}",
-            f"- **Contact Number**: {fac.get('phone') or 'Not listed in OpenStreetMap cache'}",
-            f"- **Ranking Rationale**: {primary_hosp['ranking_reason']}",
-            f"- **Navigation Route**: [Google Maps Directions]({route['google_maps_url']})",
+    if primary:
+        facility = primary["facility"]
+        route = primary["route"]
+        emergency_text = (
+            "OSM emergency=yes (hours/readiness unverified)"
+            if facility.get("has_documented_emergency")
+            else "Undocumented in OSM"
+        )
+        lines.extend([
+            f"- Recommended hospital: {facility['name']}",
+            f"- Address: {facility['address']}",
+            f"- Category: {facility['category']}",
+            f"- OSM emergency tag: {emergency_text}",
+            f"- Contact: {facility.get('phone') or 'NOT LISTED'}",
+            f"- Road distance: {route['distance_km']:.2f} km",
+            f"- Static estimated journey time: {route['estimated_time_minutes']:.1f} min",
+            f"- Route source: {route.get('route_source', 'NOT DETERMINED')}",
+            f"- Ranking explanation: {primary['ranking_reason']}",
+            f"- Navigation link: {route['google_maps_url']}",
+            "- No live traffic, bed availability, staffing, hospital acceptance or ambulance assignment is confirmed.",
         ])
+        if routing.get("alternatives"):
+            lines.append(
+                "- Alternatives: " + "; ".join(
+                    item["facility"]["name"] for item in routing["alternatives"]
+                )
+            )
     else:
-        md_lines.append("- *No hospital route computed (requires validated SOS coordinates).*")
+        lines.append(
+            f"- No hospital route prepared: {routing.get('error', 'SOS location or a connected road route is unavailable.')}"
+        )
 
-    md_lines.extend([
+    lines.extend([
         "",
-        "## 7. Multi-Source Cross-Verification `[COMPUTED COMPARISON]`",
-        f"- **Vehicle Count Comparison**: {count_consistency}",
-        f"- **Contradictions in Transcript**: {' | '.join(nlp_summary['contradictions']) if nlp_summary['contradictions'] else 'No internal contradictions detected'}",
+        "## 7. Cross-source comparison [COMPUTED COMPARISON]",
+        f"- Visual candidate count vs caller-reported count: {count_comparison}",
         "",
-        "## 8. Mandatory Verification & Limitations",
-        "- **Human Review Required**: YES (Mandatory before emergency action)",
-        "- **Prototype Safety Notice**: Ambulance routing and hospital recommendations are simulated for evaluation. The system does NOT place real 112/108 emergency calls or confirm bed availability.",
+        "## 8. Mandatory safety notice",
+        "- Human review is required before any emergency action.",
+        "- This application does not place 112/108 calls, contact or assign an ambulance, or confirm hospital acceptance.",
+        "- Road times are estimates from static OpenStreetMap graph attributes and endpoint connectors; no live traffic data is used.",
+        "- Hospital records are from a dated OpenStreetMap snapshot and may be incomplete or outdated.",
     ])
 
     return {
-        "timestamp": timestamp_str,
-        "cv_evidence": cv_summary,
-        "ocr_evidence": ocr_summary,
-        "nlp_evidence": nlp_summary,
-        "sos_location": sos_dict,
-        "hospital_routing": hospital_routing_result,
+        "timestamp": generated_at,
+        "cv_evidence": {
+            "source": "REAL CV (CLASSICAL IMAGE PROCESSING)",
+            "candidate_vehicle_count": visual_count,
+            "candidates": cv_candidates,
+            "diagnostics": cv_diagnostics,
+        },
+        "ocr_evidence": ocr,
+        "nlp_evidence": nlp,
+        "sos_location": sos,
+        "hospital_routing": routing,
         "accident_assessment": assessment,
-        "cross_check": cross_check,
-        "markdown_report": "\n".join(md_lines),
+        "cross_check": {
+            "vehicle_count_comparison": count_comparison,
+            "human_review_required": True,
+        },
+        "markdown_report": "\n".join(lines),
     }
