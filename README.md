@@ -1,149 +1,94 @@
-# Third Eye AI 🚑
+# THIRD EYE AI — CV, Indian Number-Plate OCR, NLP & SOS Hospital Routing
 
-**Local multimodal accident-analysis and simulated ambulance-dispatch prototype**
+THIRD EYE AI is a local Streamlit demonstration that combines three deterministic AI-focused disciplines—classical Computer Vision, template-based number-plate OCR, and rule-based NLP—with conventional SOS location validation, hospital catalog filtering, and road-network routing.
 
-Third Eye AI analyses an uploaded road image or traffic video, detects vehicles and people, attempts number-plate OCR, runs a trained accident classifier, extracts structured facts from a caller transcript, retrieves source-labelled hospital records, and displays a simulated dispatch plan. It is designed to run entirely on a MacBook Air M2 using local model weights and cached OpenStreetMap data — no paid API, no cloud inference, no Docker.
+It does not use Machine Learning, Deep Learning, RAG, pretrained neural models, neural OCR, or LLMs.
 
-> **Prototype, not an emergency service.** The app does not place calls, contact ambulances, verify GPS or live traffic, or confirm an accident from a single image. Every displayed value is labelled `REAL`, `SIMULATED`, or `NOT DETERMINED`. See [FINAL_DEMO_VERIFICATION_REPORT.md](FINAL_DEMO_VERIFICATION_REPORT.md) for the actual verified outputs and limitations, and [GITHUB_FILE_AUDIT.md](GITHUB_FILE_AUDIT.md) for the complete file inventory.
+> **Emergency safety notice:** This is a demonstration and decision-support prototype. It does not place emergency calls, contact or assign an ambulance, confirm hospital acceptance, verify staffing or bed availability, or use live traffic. Human confirmation is mandatory.
 
----
+## Core workflow
 
-## Six technologies — where each one actually runs
+1. **Computer Vision:** Enhance an uploaded road image, calculate image diagnostics, and propose geometric vehicle regions using OpenCV contours and morphology. These are candidate regions, not learned vehicle detections or proof of a collision.
+2. **OCR:** Localize plate-like regions, segment glyphs, compare them with the bundled A–Z/0–9 templates, and validate Indian registration formats. Raw evidence and uncertainty are retained; missing characters are never guessed.
+3. **NLP:** Extract caller-reported vehicles, locations, injuries and hazards using Python rules, then generate a transparent urgency description and contradiction checks.
+4. **Accident evidence assessment:** A deterministic heuristic combines available candidate geometry and caller text. It is not a medical/legal determination and must not be treated as proof of a collision.
+5. **SOS location:** Accept an imported SOS JSON event, explicitly permitted browser GPS when the device is at the scene, an operator-selected map pin, or clearly marked simulated Phagwara demo coordinates.
+6. **Hospital selection:** Filter a dated OpenStreetMap snapshot to source-tagged hospitals; do not suggest clinics as hospitals or infer emergency capabilities from names.
+7. **Road routing:** Calculate a directed path over the saved Phagwara OpenStreetMap GraphML road network. Routes outside graph coverage or without a connected path are reported unavailable; straight-line distance is never labelled as road distance.
+8. **Combined report:** Preserve provenance tags for visual evidence, OCR, caller NLP, SOS source, hospital records, and route calculations.
 
-| # | Technology | Implementation (real code) | What executes |
-|---|---|---|---|
-| 1 | Computer Vision | [`core/cv/detector.py`](core/cv/detector.py), [`core/cv/plate_detector.py`](core/cv/plate_detector.py), [`core/cv/plate_detector_yunet.py`](core/cv/plate_detector_yunet.py) | TorchVision Faster R-CNN ResNet-50 FPN (COCO) detects `person`, `car`, `truck`, `bus`, `motorcycle`, `bicycle`; orientation retry for physically rotated photos; YuNet ONNX + OpenCV heuristic + OCR fallback propose plate regions. MPS → CPU fallback. |
-| 2 | OCR | [`core/ocr/plate_reader.py`](core/ocr/plate_reader.py) | Local EasyOCR English reader reads detected plate crops. Raw text and confidence are retained verbatim; text normalisation never invents characters. Verification threshold is **0.70** in [`app/main.py`](app/main.py); below it the Plate column reads `NOT READABLE (UNVERIFIED)`. |
-| 3 | Machine Learning | [`core/ml/accident_analyzer.py`](core/ml/accident_analyzer.py), [`core/ml/accident_features.py`](core/ml/accident_features.py), [`models/accident_classifier.joblib`](models/accident_classifier.joblib) | A trained logistic-regression classifier consumes frozen ResNet-18 embeddings and returns an **uncalibrated** score: `>=0.60` LIKELY ACCIDENT, `0.40–0.60` UNCERTAIN, `<0.40` NO ACCIDENT SIGNAL. Geometric overlap features are explanatory only and never decide the verdict. |
-| 4 | Deep Learning | [`core/cv/detector.py`](core/cv/detector.py), [`core/ml/accident_analyzer.py`](core/ml/accident_analyzer.py), [`core/rag/index.py`](core/rag/index.py) | Neural-network inference: Faster R-CNN for detection, ResNet-18 for embeddings, SentenceTransformer `all-MiniLM-L6-v2` for hospital-document embeddings (FAISS similarity index). |
-| 5 | NLP | [`core/nlp/caller_extraction.py`](core/nlp/caller_extraction.py), [`core/nlp/fusion.py`](core/nlp/fusion.py), [`core/nlp/incident_text.py`](core/nlp/incident_text.py), [`core/nlp/occupant_report.py`](core/nlp/occupant_report.py) | spaCy-based rule extraction of caller-reported vehicles, people, location, injuries, hazards, urgency and accident status. Fusion keeps REAL vision evidence separate from SIMULATED caller evidence and never lets the transcript override the visual verdict. |
-| 6 | RAG | [`core/rag/hospital_data.py`](core/rag/hospital_data.py), [`core/rag/index.py`](core/rag/index.py), [`core/rag/retriever.py`](core/rag/retriever.py), [`core/rag/facility_classification.py`](core/rag/facility_classification.py) | Real cached OpenStreetMap facility records are classified for dispatch eligibility, embedded with SentenceTransformer, indexed in FAISS, and retrieved by a rule-built query plus proximity re-ranking. Results are labelled REAL OSM with source-reported (unverified) capability. |
+## Technology boundaries
 
-Supporting modules: [`core/routing/`](core/routing/) contains the A* road-network planner, trajectory simulation and map rendering used by the offline dispatch scripts and the stored summary shown in the UI; [`core/schemas.py`](core/schemas.py) enforces explicit `REAL`/`SIMULATED` provenance; [`db/database.py`](db/database.py) holds the SQLite schema used by the CLI pipeline scripts. The Streamlit app opens SQLite read-only and writes no uploaded bytes to the project.
+| Area | Implementation | Not used |
+|---|---|---|
+| CV | OpenCV, NumPy, contours, Canny, morphology, geometry | YOLO, Faster R-CNN, RCNN, ResNet, CNN, pretrained detectors |
+| OCR | OpenCV preprocessing, connected components, character templates, regex validation | EasyOCR, Tesseract, neural OCR |
+| NLP | Python regular expressions, keyword dictionaries and deterministic rules | spaCy models, Transformers, LLMs, embeddings |
+| SOS/hospitals/routes | Browser Geolocation API with explicit permission, SOS JSON import, map pin, OpenStreetMap data, NetworkX, Folium | ML/DL, live dispatch, live traffic, claimed hospital bed feeds |
 
----
+## SOS location sources
 
-## Six Streamlit tabs
+The SOS interface offers four modes:
 
-The entry point is [`app/main.py`](app/main.py). There are no action buttons and no required typing: upload one file and the pipeline runs; dropdowns select a simulated call, a demo location, the number of video frames to sample, and a dispatch replay step.
+- **Incoming SOS event JSON import:** Upload or paste an event exported from an SOS provider. The application validates coordinates and requires an event timestamp to detect stale messages. The file/text import is not cryptographically authenticated by this app and is not a real-time webhook. Verify the sender separately. A production integration needs an authenticated provider API/webhook adapter.
+- **Browser GPS:** Click the GPS button and grant browser permission. Use this only if the device is physically at the incident. Captured coordinates, accuracy and timestamp are returned to Streamlit.
+- **Operator-selected map pin:** Click the interactive map where the accident occurred. This is an operator-selected location, not a GPS reading; confirm it with the caller. Accuracy remains unknown.
+- **Phagwara demo scenario:** Preset coordinates are labelled SIMULATED_DEMO; no false GPS accuracy is attached.
 
-1. **Scene** — analysed image (or highest-scoring sampled video frame), REAL detector boxes, vehicle/person counts, SHA-256 fingerprint, orientation correction and occlusion diagnostics.
-2. **Vehicles** — per-vehicle crop attributes, plate candidate bbox and detection method, raw OCR text/confidence, and verified/unverified plate status. No plate is invented below 0.70 OCR confidence.
-3. **Accident check** — trained-model score and verdict with held-out metrics; for video, real container metadata, per-frame scores with frame numbers and timestamps, score chart, temporal signal and an explicitly sampled-frame-only assessment.
-4. **Incident report** — source-separated tables and generated narrative combining REAL vision facts with optional SIMULATED caller facts; caller claims that conflict with the visual model are labelled `CALLER-REPORTED ACCIDENT — VISUAL MODEL DOES NOT CONFIRM`.
-5. **Hospitals & emergency numbers** — SIMULATED incident location, caller-location consistency, REAL OSM facility suggestions with source provenance, and plain-text emergency numbers (the app never places calls).
-6. **Dispatch** — replay of a stored SIMULATED dispatch summary: simulated ambulance placement/ETA, REAL OSM hospital record, route legs, static map fallback, Google Maps navigation links and explicit "no live GPS / no live traffic" notices.
+Locations with invalid coordinates or timestamps older than 15 minutes are blocked from routing. Browser GPS can require HTTPS or localhost and user permission. The dispatcher’s computer location is not substituted automatically for the incident location.
 
----
+## Hospital source and route logic
 
-## Architecture and workflow
+The bundled hospital snapshot is an OpenStreetMap extract dated 2026-11-24. It may be incomplete or outdated. The app includes only named facilities tagged as hospitals (amenity=hospital or healthcare=hospital) and filters clinics and other outpatient services.
 
-```text
-one upload (image or video)
-   │
-   ├─ CV ── Faster R-CNN ───────────────► REAL detections / boxes / counts
-   │        └─ YuNet + OCR fallback ───► plate candidate bbox
-   │                 └─ EasyOCR ───────► raw text + confidence ──► 0.70 gate ──► Vehicles tab
-   │
-   ├─ ML/DL ─ ResNet-18 + joblib ──────► uncalibrated score ──► verdict ──► Accident tab
-   │
-   ├─ NLP ─── caller transcript (SIMULATED, optional)
-   │        └─ fusion ─────────────────► source-separated report ──► Incident report tab
-   │
-   ├─ RAG ─── cached OSM records ─ FAISS ► labelled hospital suggestions ──► Hospitals tab
-   │
-   └─ dispatch summary (SIMULATED) ─────► replay, map, ETAs ──► Dispatch tab
-```
+Ranking is transparent:
+1. Down-rank an apparent single-specialty facility when the caller description does not indicate a matching need. Name hints do not prove clinical capability.
+2. Use an explicit OpenStreetMap emergency=yes tag only as a secondary source-data indicator; this does not prove hours, staffing, 24/7 service or current readiness.
+3. Order remaining hospitals by estimated travel time on the directed saved road graph.
 
-For video, frames are evenly sampled across the whole clip (configurable 4–60, default 12). Every sampled frame gets real detection and classifier inference; frame number and timestamp are preserved. OCR and vehicle attributes run only on the highest-scoring sampled frame. The UI never claims full-clip analysis.
+The route follows the network’s static edge travel-time attributes. The short connectors from the exact SOS pin to the snapped road node and from the destination node to the hospital are straight-line approximations with a stated connector-speed assumption. There is no live traffic or ambulance ETA. If no path exists or coordinates are outside the saved network, no route is presented.
 
----
+An external Google Maps driving-directions link is provided for navigation recalculation by that service.
+
+## Streamlit interface
+
+The five tabs are:
+1. Computer Vision
+2. Plate OCR
+3. NLP & Evidence
+4. SOS & Hospital Route
+5. Combined Report
+
+SOS routing remains usable even when no image is uploaded. CV/OCR tabs show an upload prompt instead of blocking the entire app.
 
 ## Installation
 
-Python 3.12 and macOS are the tested environment. From a clone of this repository:
+Python 3.10+ is recommended.
 
-```bash
-cd third-eye-v2
-python3 -m venv .venv
-source .venv/bin/activate
-pip install -r requirements.txt
-```
-
-`requirements.txt` is fully pinned and includes the `en_core_web_sm` spaCy model wheel. No `.env` file or API key is required; `.env.example` documents the optional override variables.
-
-### Bundled and cached model assets
-
-| Asset | Location | Notes |
-|---|---|---|
-| EasyOCR CRAFT detector + English recogniser | `models/easyocr/*.pth` (~94 MB) | Bundled in the repository; `download_enabled=False`. |
-| YuNet license-plate ONNX + vendored Apache-2.0 licence | `models/plate_detector/` (~4 MB) | SHA-256 verified at load time. |
-| Trained accident classifier + metrics | `models/accident_classifier*.{joblib,json}` | Bundled. |
-| Faster R-CNN ResNet-50 FPN COCO weights | TorchVision cache (`~/.cache/torch/hub/checkpoints`) | Downloaded once by TorchVision on first use (~160 MB); automatic MPS→CPU fallback. |
-| ResNet-18 weights | TorchVision cache (~45 MB) | Downloaded once on first classification. |
-| SentenceTransformer `all-MiniLM-L6-v2` | Hugging Face cache | Downloaded once on first hospital retrieval; runtime uses offline mode after that. |
-
-See [`GITHUB_FILE_AUDIT.md`](GITHUB_FILE_AUDIT.md) for exact sizes, hashes and retrieval instructions for every asset.
-
----
+    git clone https://github.com/sri872/third-eye-ai.git
+    cd third-eye-ai
+    python3 -m venv .venv
+    source .venv/bin/activate
+    pip install -r requirements.txt
 
 ## Launch
 
-```bash
-cd third-eye-v2
-source .venv/bin/activate
-streamlit run app/main.py
-```
+    streamlit run app/main.py
 
-Open <http://localhost:8501>. On macOS you can also double-click [`launch.command`](launch.command), or run `bash launch.command`.
+Open http://localhost:8501.
 
-Headless verification:
+## Test
 
-```bash
-streamlit run app/main.py --server.headless true --server.port 8501
-```
+    pytest -v
+    python -m compileall -q app core tests
+    git diff --check
 
----
+## Limitations and accuracy
 
-## Professor demonstration (exact sequence)
+Classical contour proposals are not reliable object detectors across arbitrary scenes. Template OCR is sensitive to fonts, blur, perspective, dirt, glare and occlusion. Template self-matching and synthetic examples are not real-world Indian plate accuracy. NLP rules only recognize terms and patterns covered by their dictionaries. The hospital database is a dated community-maintained map extract, not a verified clinical directory.
 
-Mandatory inputs are in [`data/samples/demo/`](data/samples/demo/). Upload them through the sidebar; the app deliberately does not auto-load samples.
+No accuracy target is guaranteed by design. Reported metrics must be calculated using a labelled held-out dataset and must distinguish synthetic/template checks from real-world tests.
 
-1. **Single car:** upload `single_car_plate.jpg` → **Scene** shows a rotated-to-landscape image with one REAL car box → **Vehicles** shows the plate candidate region, raw EasyOCR evidence and `NOT READABLE (UNVERIFIED)` unless OCR confidence reaches 0.70 → **Incident report** shows vision-only source labels.
-2. **Collision image:** upload `two_car_collision.jpg` → **Scene** shows REAL car/person boxes → select call `call_demo_01_collision.txt` → **Accident check** shows the actual (possibly non-confirming) model verdict → **Incident report** keeps caller urgency/hazards/injuries separate and reports any source disagreement without changing the visual verdict.
-3. **Heavy traffic:** upload `heavy_traffic.jpg` → **Scene** shows real crowded-scene counts → **Accident check** shows the real classifier result; close vehicles and many people are not treated as a confirmed collision.
-4. **Road video:** upload `road vdo.mp4` → **Accident check** shows real metadata, sampled frame numbers/timestamps/scores, temporal signal and the sampled-frame-only assessment.
-5. Select a SIMULATED demo location in the sidebar → **Hospitals** shows REAL OSM suggestions with provenance → **Dispatch** shows the clearly labelled simulated replay. Switch inputs repeatedly: cached results are keyed by file bytes, sample count and location, so old results cannot leak.
+## Data attribution
 
-The measured outputs for these exact files are recorded in [`FINAL_DEMO_VERIFICATION_REPORT.md`](FINAL_DEMO_VERIFICATION_REPORT.md) and machine-readable form in [`data/outputs/demo_verification.json`](data/outputs/demo_verification.json) and [`data/outputs/streamlit_workflow.json`](data/outputs/streamlit_workflow.json).
-
----
-
-## Tests and verification commands
-
-```bash
-# Full suite (from the repository root)
-.venv/bin/python -m pytest -q
-
-# Real inference on all four mandatory files (detector + YuNet + OCR + classifier + video sampling)
-.venv/bin/python scripts/verify_demo_assets.py
-
-# Real Streamlit AppTest workflow across all six tabs and four files
-.venv/bin/python scripts/verify_streamlit_workflow.py
-```
-
-The suite covers schemas, database constraints, real detector/OCR integration, plate localisation, caller extraction, source-separated fusion, RAG honesty, routing, all six UI tabs, video sampling and the demo-input regressions. Tests that need external dashcam data skip explicitly rather than inventing evidence.
-
----
-
-## Known limitations
-
-- The accident classifier was trained on forward-facing dashcam clips; still images, CCTV angles and post-impact wreckage are out of domain. Scores are **uncalibrated ranking signals**, not true probabilities. Held-out ROC-AUC is 0.7452; false positives and false negatives occur. A single high frame is not proof of an accident, and a low score is not proof that no accident happened.
-- Engineered collision geometry is explanatory only; no rule-based heuristic is presented as a trained model prediction.
-- YuNet was trained on Chinese plates and may miss Indian or heavily blurred plates. Low-confidence OCR candidates are never promoted to verified registration numbers.
-- Caller transcripts, incident locations and ambulances are simulated. Dispatch replay uses stored results; no live GPS, traffic, bed availability, hospital capability verification, or real ambulance contact exists.
-- Video analysis uses evenly spaced samples, never every frame, and OCR runs only on the peak-scoring sampled frame.
-- The OSM cache may omit phone numbers or emergency tags; missing values stay `not determined`. Proximity or ranking score is not clinical verification.
-- Further documentation: [DEMO_SCRIPT.md](docs/DEMO_SCRIPT.md), [SYSTEM_CARD.md](docs/SYSTEM_CARD.md), [accident model card](docs/model_card_accident.md), and phase reports in [`docs/`](docs/) plus [`PHASE15_FINAL_VERIFICATION.md`](PHASE15_FINAL_VERIFICATION.md).
-
-No licence has been selected by the project owner; no root `LICENSE` file is included. The vendored YuNet ONNX model retains its own Apache-2.0 licence in `models/plate_detector/`.
+Hospital locations and the saved road graph are derived from OpenStreetMap. © OpenStreetMap contributors; Open Database License (ODbL) 1.0. The cached hospital snapshot is dated 2026-11-24. Static graph speeds do not represent current traffic.

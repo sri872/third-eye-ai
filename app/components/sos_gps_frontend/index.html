@@ -1,0 +1,78 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <script src="https://unpkg.com/streamlit-component-lib@1.5.0/dist/index.js"></script>
+  <style>
+    body { margin:0; font-family:system-ui,sans-serif; color:var(--text-color,#222); }
+    .row { display:flex; flex-wrap:wrap; align-items:center; gap:12px; }
+    button { border:0; border-radius:8px; padding:10px 16px; background:#b42318; color:#fff; font-size:14px; cursor:pointer; }
+    button:disabled { opacity:.6; cursor:wait; }
+    #status { font-size:13px; line-height:1.4; }
+  </style>
+</head>
+<body>
+  <div class="row">
+    <button id="capture" type="button">Request permission and capture GPS</button>
+    <span id="status">No location has been read. Press the button to request browser permission.</span>
+  </div>
+  <script>
+    const button = document.getElementById("capture");
+    const status = document.getElementById("status");
+    function updateStatus(message) { status.textContent = message; }
+    function send(value) {
+      if (window.Streamlit) window.Streamlit.setComponentValue(value);
+    }
+    button.addEventListener("click", () => {
+      if (!navigator.geolocation) {
+        updateStatus("Geolocation is unavailable in this browser. Use SOS JSON or manual verification.");
+        send({error: "Browser geolocation is not supported."});
+        return;
+      }
+      button.disabled = true;
+      updateStatus("Requesting permission and waiting for a high-accuracy location…");
+      navigator.geolocation.getCurrentPosition(
+        position => {
+          const location = {
+            latitude: position.coords.latitude,
+            longitude: position.coords.longitude,
+            accuracy_meters: position.coords.accuracy,
+            timestamp: new Date(position.timestamp).toISOString(),
+            location_name: "Browser device location"
+          };
+          send(location);
+          updateStatus("Coordinates returned to the application. Review GPS accuracy before routing.");
+          button.disabled = false;
+        },
+        error => {
+          const messages = {
+            1: "Permission denied by the user.",
+            2: "The device could not determine a position.",
+            3: "The GPS request timed out."
+          };
+          const message = messages[error.code] || "Unknown geolocation error.";
+          updateStatus(message + " Use SOS JSON or operator verification as a fallback.");
+          send({error: message});
+          button.disabled = false;
+        },
+        {enableHighAccuracy:true, timeout:15000, maximumAge:0}
+      );
+    });
+    function ready() {
+      if (!window.Streamlit) {
+        updateStatus("GPS component failed to load. Use SOS JSON or manual coordinates.");
+        return;
+      }
+      window.Streamlit.setComponentReady();
+      window.Streamlit.setFrameHeight(76);
+    }
+    if (window.Streamlit) {
+      window.Streamlit.events.addEventListener(window.Streamlit.RENDER_EVENT, ready);
+      ready();
+    } else {
+      window.addEventListener("load", ready);
+    }
+  </script>
+</body>
+</html>

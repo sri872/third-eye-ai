@@ -1,201 +1,198 @@
-"""License plate reading module for Project Third-Eye.
+"""Classical plate reading using multi-variant thresholding and glyph templates.
 
-Extracts text candidates from plate regions or legacy whole-vehicle crops using
-EasyOCR with lazy loading. Normalizes plate text (uppercase, alphanumeric only)
-without fabricating characters. Returns real OCR confidence or (None, None) when
-unreadable, while preserving the exact raw OCR text and its status.
+Recognition scores are heuristic similarity measures, not calibrated probabilities.
+No neural OCR or learned detector is used.
 """
+from __future__ import annotations
 
-from dataclasses import dataclass
-import logging
-from pathlib import Path
-import re
-from typing import Optional, Tuple
+from typing import Any, Dict, List, Optional
 
-import cv2
-import easyocr
 import numpy as np
 
-logger = logging.getLogger("third_eye.ocr.plate_reader")
-
-# Project root models directory for isolated local storage
-PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
-MODEL_DIR = PROJECT_ROOT / "models" / "easyocr"
-USER_NETWORK_DIR = MODEL_DIR / "user_network"
-
-_READER: Optional[easyocr.Reader] = None
-_DEVICE: str = "cpu"
+from core.ocr.preprocessing import preprocess_plate_variants
+from core.ocr.character_segmentation import segment_characters
+from core.ocr.template_recognition import TemplateRecognizer
+from core.ocr.plate_validation import validate_indian_plate
 
 
-@dataclass(frozen=True)
-class PlateOCREvidence:
-    """Real OCR output for one vehicle crop, with no inferred characters.
+class ClassicalPlateReader:
+    """Deterministic Indian number-plate OCR with multiple CV preprocessing paths."""
 
-    ``plate`` / ``plate_confidence`` are the same values returned by ``read_plate``.
-    ``raw_text`` / ``raw_confidence`` keep the highest-confidence text that EasyOCR
-    actually emitted, even when normalization rejects it. This lets the UI show
-    recognized text honestly without presenting it as a verified registration.
-    Verification itself stays in the UI at PLATE_TRUST_THRESHOLD = 0.7.
-    """
+    def __init__(
+        self,
+        template_dir: Optional[str] = None,
+        verification_threshold: float = 0.70,
+    ):
+        self.recognizer = TemplateRecognizer(template_dir=template_dir)
+        self.verification_threshold = verification_threshold
 
-    plate: Optional[str] = None
-    plate_confidence: Optional[float] = None
-    raw_text: Optional[str] = None
-    raw_confidence: Optional[float] = None
-    candidate_count: int = 0
-    # Dedicated-detector provenance. Defaults keep the Phase 11 interface intact.
-    plate_detection_status: str = "NOT RUN (LEGACY WHOLE-CROP OCR)"
-    plate_bbox: Optional[Tuple[int, int, int, int]] = None
-    plate_detector: str = "NONE"
-    ocr_status: str = "NOT RUN"
+    def _recognize_binary(self, binary: np.ndarray) -> Dict[str, Any]:
+        segmented = segment_characters(binary)
+        recognized_chars: List[Dict[str, Any]] = []
+        raw_chars: List[str] = []
+        similarities: List[float] = []
+        use_priors = len(segmented) == 10
 
+        for idx, (char_img, bbox) in enumerate(segmented):
+            prior = "any"
+            if use_priors:
+                prior = "letter" if idx in (0, 1, 4, 5) else "digit"
+            char, similarity, top3 = self.recognizer.match_character(
+                char_img, prior=prior
+            )
+            raw_chars.append(char)
+            similarities.append(similarity)
+            recognized_chars.append({
+                "position": idx,
+                "character": char,
+                "similarity": similarity,
+                "bbox": list(bbox),
+                "top_candidates": top3,
+                "char_image": char_img,
+            })
 
-def get_ocr_reader() -> Tuple[easyocr.Reader, str]:
-    """Lazy-load the EasyOCR English reader once and cache it."""
-    global _READER, _DEVICE
-
-    if _READER is None:
-        MODEL_DIR.mkdir(parents=True, exist_ok=True)
-        USER_NETWORK_DIR.mkdir(parents=True, exist_ok=True)
-
-        _DEVICE = "cpu"
-        print(f"[Third-Eye OCR] Initializing EasyOCR Reader on device: {_DEVICE.upper()}")
-        
-        _READER = easyocr.Reader(
-            ["en"],
-            gpu=False,
-            model_storage_directory=str(MODEL_DIR),
-            user_network_directory=str(USER_NETWORK_DIR),
-            download_enabled=False,
-            verbose=False,
+        raw_text = "".join(raw_chars)
+        mean_similarity = (
+            round(float(np.mean(similarities)), 4) if similarities else 0.0
         )
-
-    return _READER, _DEVICE
-
-
-def normalize_plate_text(raw_text: str) -> Optional[str]:
-    """Normalize plate text: uppercase, alphanumeric characters only.
-
-    Strict rule: Never invent, guess, or auto-correct characters.
-    Returns None if result is empty or too short (< 3 characters).
-    """
-    if not raw_text:
-        return None
-    cleaned = re.sub(r"[^A-Z0-9]", "", raw_text.upper())
-    if len(cleaned) < 3:
-        return None
-    return cleaned
-
-
-def preprocess_plate_region(region: np.ndarray) -> np.ndarray:
-    """Mild, non-fabricating preprocessing for a detected plate region.
-
-    Conversions are limited to grayscale, CLAHE, light denoising and aspect-
-    preserving upscaling. No binarisation or character synthesis is performed.
-    The caller keeps the exact raw OCR text emitted from this image.
-    """
-    if region is None or not isinstance(region, np.ndarray) or region.size == 0:
-        raise ValueError("Plate region is empty")
-
-    gray = (
-        cv2.cvtColor(region, cv2.COLOR_BGR2GRAY)
-        if region.ndim == 3 and region.shape[2] >= 3
-        else region
-    )
-    equalised = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8, 8)).apply(gray)
-    denoised = cv2.fastNlMeansDenoising(equalised, None, 5, 7, 21)
-    height, width = denoised.shape[:2]
-    scale = max(1.0, 48.0 / max(height, 1), 160.0 / max(width, 1))
-    scale = min(scale, 4.0)
-    if scale > 1.0:
-        resized = cv2.resize(
-            denoised,
-            (max(1, int(round(width * scale))), max(1, int(round(height * scale)))),
-            interpolation=cv2.INTER_CUBIC,
+        validation = validate_indian_plate(raw_text)
+        char_count = len(recognized_chars)
+        # Indian private-vehicle plates commonly use 10 characters. Treat this
+        # only as a ranking hint; other legal formats and incomplete crops exist.
+        count_fit = max(0.0, 1.0 - abs(char_count - 10) / 10.0)
+        rank_score = (
+            0.55 * mean_similarity
+            + 0.20 * count_fit
+            + (0.25 if validation["is_valid"] else 0.0)
         )
-    else:
-        resized = denoised
-    return cv2.cvtColor(resized, cv2.COLOR_GRAY2BGR)
+        return {
+            "raw_text": raw_text,
+            "mean_similarity": mean_similarity,
+            "character_count": char_count,
+            "characters": recognized_chars,
+            "validation": validation,
+            "rank_score": round(rank_score, 4),
+            "binary_plate": binary,
+        }
 
+    def read_plate(
+        self,
+        plate_bgr: np.ndarray,
+        ground_truth: Optional[str] = None,
+    ) -> Dict[str, Any]:
+        """Read a plate crop, trying multiple deterministic preprocessing variants."""
+        if plate_bgr is None or getattr(plate_bgr, "size", 0) == 0:
+            return self._empty_result("NO_PLATE_DETECTED", ground_truth)
 
-def read_plate_evidence(crop: np.ndarray) -> PlateOCREvidence:
-    """Collect real EasyOCR evidence from a plate region without guessing text.
+        try:
+            variants = preprocess_plate_variants(plate_bgr)
+        except Exception as exc:
+            result = self._empty_result("UNREADABLE", ground_truth)
+            result["error"] = f"Preprocessing failed: {exc}"
+            return result
 
-    No confidence threshold is applied here: the goal is to keep the exact
-    recognized text and its real confidence so the UI can decide what is verified.
-    Character normalization is unchanged (``normalize_plate_text``).
-    """
-    if crop is None or crop.size == 0:
-        return PlateOCREvidence(ocr_status="EMPTY CROP")
+        attempts: List[Dict[str, Any]] = []
+        for method, enhanced_gray, binary in variants:
+            outcome = self._recognize_binary(binary)
+            outcome["preprocessing_method"] = method
+            outcome["enhanced_gray"] = enhanced_gray
+            attempts.append(outcome)
 
-    if min(crop.shape[:2]) < 15:
-        return PlateOCREvidence(ocr_status="CROP TOO SMALL")
+        if not attempts or max(item["character_count"] for item in attempts) == 0:
+            result = self._empty_result("UNREADABLE", ground_truth)
+            result["threshold_variants_tried"] = [item[0] for item in variants]
+            result["variant_attempts"] = [
+                {
+                    "method": item["preprocessing_method"],
+                    "raw_text": item["raw_text"],
+                    "character_count": item["character_count"],
+                    "mean_similarity": item["mean_similarity"],
+                    "format_valid": item["validation"]["is_valid"],
+                    "rank_score": item["rank_score"],
+                }
+                for item in attempts
+            ]
+            if attempts:
+                result["binary_plate"] = attempts[0]["binary_plate"]
+                result["enhanced_gray"] = attempts[0]["enhanced_gray"]
+            result["similarity_is_probability"] = False
+            return result
 
-    try:
-        reader, _ = get_ocr_reader()
-    except Exception as exc:
-        logger.warning("OCR initialization failed: %s", exc)
-        return PlateOCREvidence(ocr_status="OCR INITIALIZATION FAILURE")
+        # Prefer syntactically valid candidates; then rank by glyph similarity
+        # and a weak expected-length prior.
+        best = max(
+            attempts,
+            key=lambda item: (
+                bool(item["validation"]["is_valid"]),
+                item["rank_score"],
+                item["mean_similarity"],
+            ),
+        )
+        validation = best["validation"]
+        mean_similarity = best["mean_similarity"]
 
-    try:
-        results = reader.readtext(crop)
-    except Exception as exc:
-        logger.warning("OCR inference failed on crop: %s", exc)
-        return PlateOCREvidence(ocr_status="OCR INFERENCE FAILURE")
+        normalized_text = (
+            validation["normalized"] if validation["is_valid"] else best["raw_text"]
+        )
+        exact_match = False
+        if ground_truth:
+            gt_clean = "".join(ch for ch in ground_truth.upper() if ch.isalnum())
+            exact_match = normalized_text == gt_clean
 
-    if not results:
-        return PlateOCREvidence(ocr_status="NO OCR RESULTS")
+        # A format-shaped string and a high template score are not proof of
+        # identity. "VERIFIED" is reserved for an exact match to supplied,
+        # trusted ground truth; otherwise the output remains unverified.
+        if (
+            validation["is_valid"]
+            and mean_similarity >= self.verification_threshold
+            and exact_match
+        ):
+            status, is_verified = "VERIFIED", True
+        elif validation["is_valid"] or mean_similarity >= 0.50:
+            status, is_verified = "UNVERIFIED", False
+        else:
+            status, is_verified = "UNREADABLE", False
 
-    best_plate: Optional[str] = None
-    best_plate_conf: Optional[float] = None
-    best_raw_text: Optional[str] = None
-    best_raw_conf: Optional[float] = None
-    candidate_count = 0
+        return {
+            "status": status,
+            "raw_text": best["raw_text"],
+            "normalized_text": normalized_text,
+            "mean_similarity": mean_similarity,
+            "character_count": best["character_count"],
+            "characters": best["characters"],
+            "validation": validation,
+            "is_verified": is_verified,
+            "ground_truth": ground_truth,
+            "exact_match": exact_match,
+            "binary_plate": best["binary_plate"],
+            "enhanced_gray": best["enhanced_gray"],
+            "preprocessing_method": best["preprocessing_method"],
+            "variant_attempts": [
+                {
+                    "method": item["preprocessing_method"],
+                    "raw_text": item["raw_text"],
+                    "character_count": item["character_count"],
+                    "mean_similarity": item["mean_similarity"],
+                    "format_valid": item["validation"]["is_valid"],
+                    "rank_score": item["rank_score"],
+                }
+                for item in attempts
+            ],
+            "similarity_is_probability": False,
+        }
 
-    # EasyOCR results format: [(bbox, text, prob), ...]
-    for _, text, prob in results:
-        if not text:
-            continue
-        candidate_count += 1
-        conf = float(prob)
-
-        # Keep the highest-confidence raw text exactly as EasyOCR emitted it.
-        if best_raw_conf is None or conf > best_raw_conf:
-            best_raw_text = str(text)
-            best_raw_conf = round(conf, 4)
-
-        norm = normalize_plate_text(str(text))
-        if norm is not None:
-            # Pick highest confidence valid plate candidate; never auto-correct it.
-            # When multiple candidates exist, prefer full registration numbers (having both
-            # letters and digits) over partial 3-letter country prefixes like 'IND'.
-            norm_has_ld = bool(re.search(r"[A-Z]", norm) and re.search(r"[0-9]", norm))
-            best_has_ld = bool(best_plate and re.search(r"[A-Z]", best_plate) and re.search(r"[0-9]", best_plate))
-            if (norm_has_ld and not best_has_ld) or (
-                norm_has_ld == best_has_ld and (best_plate_conf is None or conf > best_plate_conf)
-            ):
-                best_plate = norm
-                best_plate_conf = round(conf, 4)
-
-    return PlateOCREvidence(
-        plate=best_plate,
-        plate_confidence=best_plate_conf,
-        raw_text=best_raw_text,
-        raw_confidence=best_raw_conf,
-        candidate_count=candidate_count,
-        ocr_status="OK",
-    )
-
-
-def read_plate(crop: np.ndarray) -> Tuple[Optional[str], Optional[float]]:
-    """Read license plate text from a vehicle image crop.
-
-    Args:
-        crop: NumPy array representing the cropped vehicle image (BGR or RGB).
-
-    Returns:
-        (plate_text, confidence): Normalized plate text and real OCR confidence,
-                                  or (None, None) if nothing readable is detected.
-    """
-    evidence = read_plate_evidence(crop)
-    return evidence.plate, evidence.plate_confidence
+    @staticmethod
+    def _empty_result(status: str, ground_truth: Optional[str]) -> Dict[str, Any]:
+        return {
+            "status": status,
+            "raw_text": "",
+            "normalized_text": "",
+            "mean_similarity": 0.0,
+            "character_count": 0,
+            "characters": [],
+            "validation": validate_indian_plate(""),
+            "is_verified": False,
+            "ground_truth": ground_truth,
+            "exact_match": False,
+            "similarity_is_probability": False,
+        }
