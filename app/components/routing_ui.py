@@ -20,10 +20,11 @@ def render_hospital_routing_tab(
     incident_text: str = "",
 ):
     """Render the nearest source-tagged hospital and its saved-graph road route."""
-    st.subheader("Nearest suitable hospital and ambulance route")
+    st.subheader("Hospital candidates and ambulance road route")
     st.caption(
-        "Facilities are filtered to source-tagged hospitals only. Ranking uses "
-        "source-record hints and route time calculated on the saved road graph."
+        "This prototype ranks source-tagged hospital candidates; it does not establish "
+        "clinical suitability. Ranking uses available OSM metadata and a directed saved "
+        "road graph, not live hospital or traffic information."
     )
     if sos_location is None:
         st.warning("Provide an SOS event, capture browser GPS at the incident, or verify operator coordinates.")
@@ -107,6 +108,18 @@ def render_hospital_routing_tab(
     st_folium(route_map, height=480, use_container_width=True, returned_objects=[])
     st.markdown(f"[Open driving directions in Google Maps]({route['google_maps_url']})")
     st.caption(f"© OpenStreetMap contributors. {route['travel_time_note']}")
+
+    st.markdown("#### Route calculation and provenance")
+    q1, q2, q3, q4 = st.columns(4)
+    q1.metric("SOS-to-road snap", f"{route.get('start_snap_m', 0):.0f} m")
+    q2.metric("Hospital-to-road snap", f"{route.get('destination_snap_m', 0):.0f} m")
+    q3.metric("Endpoint connectors", f"{route.get('off_network_connector_m', 0):.0f} m")
+    q4.metric("Road graph nodes", str(route.get("node_count", "N/A")))
+    st.caption(
+        "The displayed route includes straight endpoint connectors to the nearest road nodes. "
+        "The journey time uses static graph edge weights and a fixed connector-speed assumption; "
+        "it is not an ambulance ETA and has no live traffic adjustment."
+    )
 
     if ranking["alternatives"]:
         st.markdown("#### Alternative routable hospitals")
