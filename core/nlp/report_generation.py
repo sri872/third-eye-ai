@@ -34,11 +34,18 @@ def generate_structured_report(
 
     caller_count = entities.get("total_vehicles_reported", 0)
     if caller_count and cv_diagnostics:
-        comparison = "MATCH" if caller_count == visual_count else "DIFFERENCE"
-        count_comparison = (
-            f"{comparison}: {visual_count} geometric CV candidate region(s) versus "
-            f"{caller_count} caller-reported vehicle(s). Candidate regions are not confirmed vehicles."
-        )
+        if caller_count == visual_count:
+            count_comparison = (
+                f"AGREED: Visual candidate count ({visual_count}) matches caller report "
+                f"({caller_count}). Visual values are geometric candidate regions, not "
+                "confirmed vehicles."
+            )
+        else:
+            count_comparison = (
+                f"DIFFERENCE: Visual candidate count ({visual_count}) does not match "
+                f"caller report ({caller_count}). Visual values are geometric candidate "
+                "regions, not confirmed vehicles."
+            )
     else:
         count_comparison = (
             "NOT DETERMINED: visual or caller-reported vehicle count is missing."
