@@ -48,13 +48,29 @@ with st.sidebar:
         if not os.path.exists(image_path):
             image_path = os.path.join(BASE_DIR, "data", "samples", demo_images[chosen_label])
         if os.path.exists(image_path):
-            # This supplied plate demo is stored sideways without EXIF orientation.
-            # Rotate only this known asset; preserve the orientation of all other images.
-            rotation_degrees = 270 if "TS07JA0566" in chosen_label else 0
+            orientation_options = {
+                "Keep original orientation": 0,
+                "Rotate 90° clockwise": 90,
+                "Rotate 180°": 180,
+                "Rotate 90° counterclockwise": 270,
+            }
+            default_orientation = (
+                "Rotate 90° counterclockwise"
+                if "TS07JA0566" in chosen_label
+                else "Keep original orientation"
+            )
+            orientation_label = st.selectbox(
+                "Image orientation",
+                list(orientation_options),
+                index=list(orientation_options).index(default_orientation),
+                key=f"demo-orientation-{chosen_label}",
+            )
             image_bgr, image_rgb = load_image(
-                image_path, rotation_degrees=rotation_degrees
+                image_path,
+                rotation_degrees=orientation_options[orientation_label],
             )
             if "TS07JA0566" in chosen_label:
+                # The demo file has a known registration string for evaluation only.
                 ground_truth = "TS07JA0566"
         else:
             st.error(f"Sample image not found: {image_path}")
@@ -62,12 +78,23 @@ with st.sidebar:
         uploaded = st.file_uploader(
             "Upload road image", type=["jpg", "jpeg", "png"], key="incident-image"
         )
+        orientation_options = {
+            "Keep uploaded orientation": 0,
+            "Rotate 90° clockwise": 90,
+            "Rotate 180°": 180,
+            "Rotate 90° counterclockwise": 270,
+        }
+        orientation_label = st.selectbox(
+            "Uploaded image orientation",
+            list(orientation_options),
+            key="uploaded-image-orientation",
+        )
         if uploaded is not None:
-            image_bgr, image_rgb = load_image(uploaded)
-            ground_truth_text = st.text_input(
-                "Known registration number (optional)", value=""
+            image_bgr, image_rgb = load_image(
+                uploaded,
+                rotation_degrees=orientation_options[orientation_label],
             )
-            ground_truth = ground_truth_text.strip() or None
+            ground_truth = None
 
     st.divider()
     st.subheader("Caller transcript (NLP)")
