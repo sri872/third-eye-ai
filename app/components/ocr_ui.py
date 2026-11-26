@@ -115,7 +115,7 @@ def render_ocr_tab(
 
     labels = [
         (
-            f"Rank {rank} — proposal #{plates.index(candidate) + 1} | "
+            f"Rank {rank} — proposal #{proposal_indices[id(candidate)]} | "
             f"{result.get('raw_text') or 'NO TEXT'} | "
             f"{result.get('character_count', 0)} chars | "
             f"similarity {result.get('mean_similarity', 0.0):.3f}"
