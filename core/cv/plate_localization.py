@@ -1,121 +1,173 @@
-"""Classical Number Plate Region Localization.
+"""Multi-path classical number-plate candidate localization.
 
-Uses deterministic morphological filtering, vertical gradient analysis (Sobel),
-and geometric aspect-ratio constraints to locate license plate candidate regions
-without any neural-network models.
+This module proposes plate-shaped image regions using OpenCV morphology,
+gradients, adaptive thresholds and geometric filters. Proposals are not
+confirmed plates; OCR/format checks must rank them separately.
 """
+from __future__ import annotations
 
-from typing import List, Dict, Any, Tuple
+from typing import Any, Dict, List, Optional, Tuple
+
 import cv2
 import numpy as np
 
 
+def _iou(a: List[int], b: List[int]) -> float:
+    ax, ay, aw, ah = a
+    bx, by, bw, bh = b
+    x1, y1 = max(ax, bx), max(ay, by)
+    x2, y2 = min(ax + aw, bx + bw), min(ay + ah, by + bh)
+    inter = max(0, x2 - x1) * max(0, y2 - y1)
+    union = aw * ah + bw * bh - inter
+    return float(inter / union) if union else 0.0
+
+
+def _candidate_score(box: Tuple[int, int, int, int], edge_map: np.ndarray) -> tuple[float, float, float]:
+    x, y, w, h = box
+    ar = w / float(max(1, h))
+    crop = edge_map[y:y + h, x:x + w]
+    density = float(cv2.countNonZero(crop)) / float(max(1, w * h))
+    # Indian registration plates are commonly wide rectangles. This is a
+    # ranking prior only; it is not a hard format detector.
+    ratio_fit = max(0.0, 1.0 - abs(ar - 4.0) / 3.0)
+    edge_fit = min(1.0, density * 4.0)
+    horizontal_fit = min(1.0, (w / float(max(1, h))) / 4.0)
+    score = 0.50 * ratio_fit + 0.35 * edge_fit + 0.15 * horizontal_fit
+    return round(score, 4), round(ar, 3), round(density, 4)
+
+
+def _deduplicate(candidates: List[Dict[str, Any]], iou_threshold: float = 0.45) -> List[Dict[str, Any]]:
+    ordered = sorted(candidates, key=lambda item: item["score"], reverse=True)
+    kept: List[Dict[str, Any]] = []
+    for candidate in ordered:
+        if all(_iou(candidate["bbox"], prior["bbox"]) < iou_threshold for prior in kept):
+            kept.append(candidate)
+    return kept
+
+
 def localize_plate_candidates(
     image: np.ndarray,
-    search_regions: List[Tuple[int, int, int, int]] = None,
+    search_regions: Optional[List[Tuple[int, int, int, int]]] = None,
     min_aspect_ratio: float = 1.8,
-    max_aspect_ratio: float = 6.0,
-    min_area: int = 400,
-    max_area: int = 150000,
+    max_aspect_ratio: float = 6.5,
+    min_area: int = 250,
+    max_area: int = 250000,
 ) -> List[Dict[str, Any]]:
-    """Localize candidate license plate regions.
+    """Return plate-like candidate crops using several classical CV pathways.
 
-    Args:
-        image: Input BGR image.
-        search_regions: Optional list of (x, y, w, h) bounding boxes to search inside.
-            If None, searches across the entire image.
-        min_aspect_ratio: Minimum width/height ratio (Indian plates ~2.2 - 5.0).
-        max_aspect_ratio: Maximum width/height ratio.
-        min_area: Minimum bounding box pixel area.
-        max_area: Maximum bounding box pixel area.
-
-    Returns:
-        List of plate candidate dictionaries.
+    Search regions are additional ROIs, not a replacement for full-frame
+    search. Callers that need both should invoke this function for each set
+    and merge the results.
     """
     if image is None or image.size == 0:
         return []
+    if image.ndim not in (2, 3):
+        return []
 
     h_img, w_img = image.shape[:2]
-    gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY) if len(image.shape) == 3 else image
+    gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY) if image.ndim == 3 else image
+    regions = [(0, 0, w_img, h_img)]
+    if search_regions:
+        regions.extend(search_regions)
 
-    # If search regions are provided, search each region; else search full image
-    regions = search_regions if search_regions else [(0, 0, w_img, h_img)]
     candidates: List[Dict[str, Any]] = []
+    seen_regions = set()
 
     for rx, ry, rw, rh in regions:
-        # Clamp to image boundaries
-        rx = max(0, min(rx, w_img - 1))
-        ry = max(0, min(ry, h_img - 1))
-        rw = max(1, min(rw, w_img - rx))
-        rh = max(1, min(rh, h_img - ry))
+        rx = max(0, min(int(rx), w_img - 1))
+        ry = max(0, min(int(ry), h_img - 1))
+        rw = max(1, min(int(rw), w_img - rx))
+        rh = max(1, min(int(rh), h_img - ry))
+        region_key = (rx, ry, rw, rh)
+        if region_key in seen_regions:
+            continue
+        seen_regions.add(region_key)
 
-        roi_gray = gray[ry : ry + rh, rx : rx + rw]
-        if roi_gray.shape[0] < 20 or roi_gray.shape[1] < 40:
+        roi = gray[ry:ry + rh, rx:rx + rw]
+        if roi.shape[0] < 18 or roi.shape[1] < 36:
             continue
 
-        # 1. Morphological Top-Hat and Black-Hat to emphasize high contrast characters
-        rect_kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (13, 5))
-        top_hat = cv2.morphologyEx(roi_gray, cv2.MORPH_TOPHAT, rect_kernel)
-        black_hat = cv2.morphologyEx(roi_gray, cv2.MORPH_BLACKHAT, rect_kernel)
-        enhanced = cv2.add(roi_gray, top_hat)
-        enhanced = cv2.subtract(enhanced, black_hat)
+        clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8, 8))
+        enhanced = clahe.apply(roi)
+        blurred = cv2.GaussianBlur(enhanced, (3, 3), 0)
+        grad_x = cv2.convertScaleAbs(cv2.Sobel(blurred, cv2.CV_32F, 1, 0, ksize=3))
+        edge_map = cv2.Canny(blurred, 40, 140)
 
-        # 2. Compute horizontal gradient (vertical edges of characters)
-        grad_x = cv2.Sobel(enhanced, cv2.CV_32F, 1, 0, ksize=3)
-        grad_x = cv2.convertScaleAbs(grad_x)
+        # Multiple pathways reduce dependence on a single lighting/polarity
+        # assumption. Kernels scale with the ROI instead of assuming one plate size.
+        close_w = max(11, min(31, int(round(rw * 0.055))))
+        if close_w % 2 == 0:
+            close_w += 1
+        blackhat_kernel = cv2.getStructuringElement(
+            cv2.MORPH_RECT,
+            (max(9, min(29, int(round(rw * 0.07))) | 1), max(3, min(9, int(round(rh * 0.12))) | 1)),
+        )
+        blackhat = cv2.morphologyEx(enhanced, cv2.MORPH_BLACKHAT, blackhat_kernel)
+        tophat = cv2.morphologyEx(enhanced, cv2.MORPH_TOPHAT, blackhat_kernel)
 
-        # 3. Gaussian blur & Otsu threshold
-        blurred = cv2.GaussianBlur(grad_x, (5, 5), 0)
-        _, thresh = cv2.threshold(blurred, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
+        paths: List[np.ndarray] = []
+        for source in (grad_x, cv2.add(grad_x, blackhat), cv2.add(grad_x, tophat)):
+            source_blur = cv2.GaussianBlur(source, (5, 5), 0)
+            _, otsu = cv2.threshold(source_blur, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
+            paths.append(otsu)
 
-        # 4. Morphological closing to connect adjacent character vertical edges into a horizontal plate blob
-        close_kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (17, 3))
-        closed = cv2.morphologyEx(thresh, cv2.MORPH_CLOSE, close_kernel)
-
-        # 5. Find contours of candidate plate blobs
-        contours, _ = cv2.findContours(closed, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-
-        for cnt in contours:
-            px, py, pw, ph = cv2.boundingRect(cnt)
-            area = pw * ph
-
-            if area < min_area or area > max_area:
-                continue
-
-            ar = float(pw) / float(ph) if ph > 0 else 0.0
-            if ar < min_aspect_ratio or ar > max_aspect_ratio:
-                continue
-
-            # Absolute coordinates in original image
-            abs_x = rx + px
-            abs_y = ry + py
-
-            # Crop candidate plate from original BGR image
-            plate_crop = image[abs_y : abs_y + ph, abs_x : abs_x + pw]
-            if plate_crop.size == 0:
-                continue
-
-            # Score plate candidate based on typical Indian HSRP ratio (~3.8 - 4.5)
-            # and edge density
-            edge_roi = thresh[py : py + ph, px : px + pw]
-            density = float(cv2.countNonZero(edge_roi)) / float(area) if area > 0 else 0.0
-
-            ratio_fit = 1.0 - min(1.0, abs(ar - 4.0) / 2.5)
-            density_fit = min(1.0, density * 3.0)
-            score = round(0.6 * ratio_fit + 0.4 * density_fit, 3)
-
-            candidates.append(
-                {
-                    "bbox": [int(abs_x), int(abs_y), int(pw), int(ph)],
-                    "aspect_ratio": round(ar, 2),
-                    "area": int(area),
-                    "edge_density": round(density, 3),
-                    "score": score,
-                    "crop": plate_crop,
-                    "method": "MORPHOLOGY_SOBEL_ASPECT_RATIO",
-                }
+        for polarity in (cv2.THRESH_BINARY, cv2.THRESH_BINARY_INV):
+            adaptive = cv2.adaptiveThreshold(
+                enhanced, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, polarity,
+                25 if min(roi.shape) >= 25 else  fifteen_odd(min(roi.shape)), 7
             )
+            paths.append(adaptive)
 
-    # Sort by score descending
-    candidates.sort(key=lambda c: c["score"], reverse=True)
-    return candidates
+        for binary in paths:
+            close_kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (close_w, 3))
+            merged = cv2.morphologyEx(binary, cv2.MORPH_CLOSE, close_kernel, iterations=1)
+            merged = cv2.morphologyEx(
+                merged, cv2.MORPH_OPEN,
+                cv2.getStructuringElement(cv2.MORPH_RECT, (2, 2))
+            )
+            contours, _ = cv2.findContours(merged, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+
+            for contour in contours:
+                px, py, pw, ph = cv2.boundingRect(contour)
+                area = pw * ph
+                if area < min_area or area > max_area:
+                    continue
+                if pw < 28 or ph < 9:
+                    continue
+                ar = pw / float(max(1, ph))
+                if not min_aspect_ratio <= ar <= max_aspect_ratio:
+                    continue
+
+                # Expand the crop slightly so outer plate borders and edge
+                # characters are not cut off by the morphology contour.
+                pad_x = max(2, int(round(pw * 0.05)))
+                pad_y = max(2, int(round(ph * 0.12)))
+                x1 = max(0, rx + px - pad_x)
+                y1 = max(0, ry + py - pad_y)
+                x2 = min(w_img, rx + px + pw + pad_x)
+                y2 = min(h_img, ry + py + ph + pad_y)
+                crop = image[y1:y2, x1:x2]
+                if crop.size == 0:
+                    continue
+
+                local_edges = edge_map[py:py + ph, px:px + pw]
+                score, measured_ar, density = _candidate_score((px, py, pw, ph), edge_map)
+                candidates.append({
+                    "bbox": [int(x1), int(y1), int(x2 - x1), int(y2 - y1)],
+                    "contour_bbox": [int(rx + px), int(ry + py), int(pw), int(ph)],
+                    "aspect_ratio": round(measured_ar, 2),
+                    "area": int((x2 - x1) * (y2 - y1)),
+                    "edge_density": density,
+                    "score": score,
+                    "crop": crop,
+                    "method": "MULTI_PATH_CLASSICAL_MORPHOLOGY",
+                    "search_region": list(region_key),
+                })
+
+    return _deduplicate(candidates)[:30]
+
+
+def fifteen_odd(limit: int) -> int:
+    """Return a legal adaptive-threshold block size for very small ROIs."""
+    value = max(3, limit - 1)
+    return value if value % 2 else value - 1
