@@ -5,7 +5,8 @@ and detect contradictions in caller reports without black-box ML models.
 """
 
 from typing import Dict, Any, List
-from core.nlp.entity_extraction import extract_entities
+import re
+from core.nlp.entity_extraction import extract_entities, _is_locally_negated
 
 
 def analyze_incident(text: str) -> Dict[str, Any]:
@@ -49,16 +50,33 @@ def analyze_incident(text: str) -> Dict[str, Any]:
     if not incident_types:
         incident_types.append("GENERAL_ROAD_INCIDENT")
 
+    # Generic collision language is useful when a caller says "vehicles
+    # collided" without naming a count or body style. Respect local negation.
+    collision_terms = ("accident", "crash", "crashed", "collision", "collided", "struck", "hit")
+    explicit_collision = any(
+        not _is_locally_negated(norm, match.start())
+        for term in collision_terms
+        for match in re.finditer(rf"\\b{term}\\b", norm)
+    )
+    if explicit_collision and not any(
+        kind in incident_types
+        for kind in ("MULTI_VEHICLE_COLLISION", "ROLLOVER_COLLISION", "SINGLE_VEHICLE_INCIDENT")
+    ):
+        incident_types.append("VEHICLE_COLLISION")
+
     # 2. Urgency Determination using explicit transparent rules
     # CRITICAL: Fatalities, unconscious victims, active fire, trapped occupants, severe head trauma
-    critical_injuries = {"unconscious", "fatality", "critical_condition", "trapped_occupant", "head_injury"}
+    critical_injuries = {
+        "unconscious", "fatality", "critical_condition", "trapped_occupant",
+        "head_injury", "breathing_difficulty", "seizure", "chest_pain"
+    }
     critical_hazards = {"fire", "gas_leak", "electrical_hazard"}
 
     has_critical_inj = any(i["category"] in critical_injuries for i in entities["injuries"])
     has_critical_haz = any(h["category"] in critical_hazards for h in entities["hazards"])
 
     # HIGH: Fractures, heavy bleeding, overturned vehicle, fuel leak
-    high_injuries = {"fracture", "bleeding", "serious_injury"}
+    high_injuries = {"fracture", "bleeding", "serious_injury", "burn"}
     high_hazards = {"fuel_leak", "overturned_vehicle", "smoke", "oil_spill", "road_obstruction"}
 
     has_high_inj = any(i["category"] in high_injuries for i in entities["injuries"])
