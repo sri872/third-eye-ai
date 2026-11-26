@@ -60,7 +60,7 @@ def render_cv_tab(image_bgr: np.ndarray, image_rgb: np.ndarray):
     col_d1, col_d2, col_d3, col_d4 = st.columns(4)
     col_d1.metric("Dimensions", f"{diagnostics['width']} × {diagnostics['height']}")
     col_d2.metric("Input Mean Brightness", f"{diagnostics['mean_brightness']}")
-    col_d3.metric("Lighting Assessment", diagnostics["lighting_condition"])
+    col_d3.metric("Exposure Assessment", diagnostics["exposure_assessment"])
     col_d4.metric("Input Clarity (Laplacian)", f"{diagnostics['sharpness_laplacian_var']:.1f}")
     st.caption(
         f"After current enhancement controls: brightness {enhanced_diagnostics['mean_brightness']:.2f}, "
