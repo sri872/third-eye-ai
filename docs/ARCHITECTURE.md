@@ -9,7 +9,7 @@ A compact emergency incident analysis demonstration based on three deterministic
     Optional incident image -> OpenCV image processing -> geometric candidate regions
                              -> plate localization -> glyph segmentation -> template OCR
     Caller incident text ----------------------------> rule-based NLP entities/urgency
-    SOS event / browser GPS / operator coordinates --> validated incident location
+    SOS event / browser GPS / operator map pin ------> validated incident location
     CV + OCR + NLP + SOS source details -------------> provenance-aware report
     Validated SOS location + OSM hospital snapshot --> source-based hospital filter/ranker
     SOS coordinates + hospital coordinates + OSM GraphML --> directed NetworkX road path
@@ -28,10 +28,10 @@ Supported location sources:
 1. Authenticated provider adapter payload (GPS_SOS_PAYLOAD is reserved for a future trusted integration; none is connected by this prototype).
 2. Imported SOS JSON file/text (SOS_JSON_IMPORT; sender is not authenticated by this application).
 3. Explicit browser geolocation after the user clicks the capture button and grants permission (DEVICE_GEOLOCATION).
-4. Operator-verified incident coordinates (OPERATOR_MANUAL_SELECTION).
+4. Operator-selected map pin (OPERATOR_MANUAL_SELECTION).
 5. Demonstration-only coordinates (SIMULATED_DEMO).
 
-Coordinates are range-checked; 0,0 is rejected. Accuracy and timestamp are retained only when supplied. Imported event payloads must include their event timestamp; locations older than 15 minutes are blocked from routing. The browser/device location is not silently used as the incident location unless the user explicitly selects it and confirms that the device is at the scene.
+Coordinates are range-checked; 0,0 is rejected. Accuracy and timestamp are retained only when supplied. Imported event payloads must include their event timestamp; locations older than 15 minutes are blocked from routing. The browser/device location is not silently used as the incident location unless the user explicitly selects it and confirms that the device is at the scene. A map pin is operator-selected and has no GPS accuracy claim.
 
 ## Hospital selection and routing
 

@@ -12,7 +12,7 @@ It does not use Machine Learning, Deep Learning, RAG, pretrained neural models, 
 2. **OCR:** Localize plate-like regions, segment glyphs, compare them with the bundled A–Z/0–9 templates, and validate Indian registration formats. Raw evidence and uncertainty are retained; missing characters are never guessed.
 3. **NLP:** Extract caller-reported vehicles, locations, injuries and hazards using Python rules, then generate a transparent urgency description and contradiction checks.
 4. **Accident evidence assessment:** A deterministic heuristic combines available candidate geometry and caller text. It is not a medical/legal determination and must not be treated as proof of a collision.
-5. **SOS location:** Accept an incoming SOS JSON import, explicitly permitted browser GPS when the device is at the scene, operator-verified coordinates, or clearly marked simulated Phagwara demo coordinates.
+5. **SOS location:** Accept an imported SOS JSON event, explicitly permitted browser GPS when the device is at the scene, an operator-selected map pin, or clearly marked simulated Phagwara demo coordinates.
 6. **Hospital selection:** Filter a dated OpenStreetMap snapshot to source-tagged hospitals; do not suggest clinics as hospitals or infer emergency capabilities from names.
 7. **Road routing:** Calculate a directed path over the saved Phagwara OpenStreetMap GraphML road network. Routes outside graph coverage or without a connected path are reported unavailable; straight-line distance is never labelled as road distance.
 8. **Combined report:** Preserve provenance tags for visual evidence, OCR, caller NLP, SOS source, hospital records, and route calculations.
@@ -24,15 +24,15 @@ It does not use Machine Learning, Deep Learning, RAG, pretrained neural models, 
 | CV | OpenCV, NumPy, contours, Canny, morphology, geometry | YOLO, Faster R-CNN, RCNN, ResNet, CNN, pretrained detectors |
 | OCR | OpenCV preprocessing, connected components, character templates, regex validation | EasyOCR, Tesseract, neural OCR |
 | NLP | Python regular expressions, keyword dictionaries and deterministic rules | spaCy models, Transformers, LLMs, embeddings |
-| SOS/hospitals/routes | Browser Geolocation API with explicit permission, JSON parser, OpenStreetMap data, NetworkX, Folium | ML/DL, live dispatch, live traffic, claimed hospital bed feeds |
+| SOS/hospitals/routes | Browser Geolocation API with explicit permission, SOS JSON import, map pin, OpenStreetMap data, NetworkX, Folium | ML/DL, live dispatch, live traffic, claimed hospital bed feeds |
 
 ## SOS location sources
 
 The SOS interface offers four modes:
 
-- **Incoming SOS event JSON import:** Upload or paste an event exported from an SOS provider. The application validates coordinates and requires an event timestamp to detect stale messages. **The file/text import is not cryptographically authenticated by this app and is not a real-time webhook.** Verify the sender separately. A production integration needs an authenticated provider API/webhook adapter.
+- **Incoming SOS event JSON import:** Upload or paste an event exported from an SOS provider. The application validates coordinates and requires an event timestamp to detect stale messages. The file/text import is not cryptographically authenticated by this app and is not a real-time webhook. Verify the sender separately. A production integration needs an authenticated provider API/webhook adapter.
 - **Browser GPS:** Click the GPS button and grant browser permission. Use this only if the device is physically at the incident. Captured coordinates, accuracy and timestamp are returned to Streamlit.
-- **Operator-verified coordinates:** Enter the incident coordinates only after confirming them; accuracy remains unknown unless supplied.
+- **Operator-selected map pin:** Click the interactive map where the accident occurred. This is an operator-selected location, not a GPS reading; confirm it with the caller. Accuracy remains unknown.
 - **Phagwara demo scenario:** Preset coordinates are labelled SIMULATED_DEMO; no false GPS accuracy is attached.
 
 Locations with invalid coordinates or timestamps older than 15 minutes are blocked from routing. Browser GPS can require HTTPS or localhost and user permission. The dispatcher’s computer location is not substituted automatically for the incident location.

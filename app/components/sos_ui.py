@@ -3,6 +3,8 @@ from __future__ import annotations
 
 import json
 import streamlit as st
+import folium
+from streamlit_folium import st_folium
 
 from app.components.sos_gps_component import capture_device_location
 from core.sos.location import (
@@ -22,6 +24,7 @@ DEMO_INCIDENTS = {
     "GT Road near LPU, Chaheru": (31.2532, 75.7035),
     "Phagwara-Hoshiarpur Road": (31.2455, 75.7802),
 }
+PHAGWARA_MAP_CENTER = (31.2206734, 75.7696463)
 
 
 def _remember(location: SOSLocation, mode: str) -> None:
@@ -50,7 +53,7 @@ def _restore(mode: str) -> SOSLocation | None:
 
 
 def render_sos_location_component() -> SOSLocation | None:
-    """Capture an SOS payload, actual browser GPS, or operator/demo coordinates."""
+    """Capture SOS event JSON, actual browser GPS, map pin, or demo coordinates."""
     st.subheader("Incident SOS location")
     st.caption(
         "The selected accident coordinates are the route origin. A dispatcher’s "
@@ -61,7 +64,7 @@ def render_sos_location_component() -> SOSLocation | None:
         [
             "Incoming SOS event JSON (sender not authenticated here)",
             "Browser GPS (device must be at the incident)",
-            "Operator-verified coordinates",
+            "Select incident pin on map",
             "Phagwara demo scenario (SIMULATED)",
         ],
         key="sos-source-mode",
@@ -118,21 +121,29 @@ def render_sos_location_component() -> SOSLocation | None:
                 else:
                     _clear_saved()
 
-    elif mode == "Operator-verified coordinates":
-        allow_restore = True
-        with st.form("operator-sos-location"):
-            lat_text = st.text_input("Accident latitude", placeholder="Enter verified latitude")
-            lon_text = st.text_input("Accident longitude", placeholder="Enter verified longitude")
-            accuracy_text = st.text_input("Accuracy metres (optional)", placeholder="Leave blank if unknown")
-            name = st.text_input("Location description (optional)", placeholder="Road, landmark or address")
-            submitted = st.form_submit_button("Validate incident coordinates")
-        if submitted:
+    elif mode == "Select incident pin on map":
+        st.info(
+            "Click the map at the accident location. This is an operator-selected pin, "
+            "not a GPS reading; confirm the position with the caller."
+        )
+        location_map = folium.Map(
+            location=PHAGWARA_MAP_CENTER,
+            zoom_start=14,
+            control_scale=True,
+        )
+        click_result = st_folium(
+            location_map,
+            height=400,
+            key="operator-sos-map-pin",
+            returned_objects=["last_clicked"],
+        )
+        clicked = (click_result or {}).get("last_clicked")
+        if isinstance(clicked, dict) and clicked.get("lat") is not None and clicked.get("lng") is not None:
             location, error = create_sos_location(
-                lat_text,
-                lon_text,
+                clicked["lat"],
+                clicked["lng"],
                 source=SOURCE_OPERATOR_MANUAL,
-                accuracy_meters=accuracy_text or None,
-                location_name=name or None,
+                location_name="Operator-selected map pin",
             )
             if location is not None:
                 _remember(location, mode)
@@ -171,7 +182,7 @@ def render_sos_location_component() -> SOSLocation | None:
         if location.source == SOURCE_SIMULATED_DEMO:
             st.warning("SIMULATED location for demonstration only. It is not a live SOS signal.")
         elif location.source == SOURCE_OPERATOR_MANUAL:
-            st.info("Operator-entered coordinates; verify the incident pin before using the route.")
+            st.info("Operator-selected map pin; confirm the location with the caller before routing.")
         elif location.source == SOURCE_SOS_JSON_IMPORT:
             st.warning("Imported SOS JSON is not cryptographically authenticated by this application.")
         elif location.accuracy_meters is not None and location.accuracy_meters > 100:
