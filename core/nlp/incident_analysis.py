@@ -52,14 +52,14 @@ def analyze_incident(text: str) -> Dict[str, Any]:
     # 2. Urgency Determination using explicit transparent rules
     # CRITICAL: Fatalities, unconscious victims, active fire, trapped occupants, severe head trauma
     critical_injuries = {"unconscious", "fatality", "critical_condition", "trapped_occupant", "head_injury"}
-    critical_hazards = {"fire", "gas_leak"}
+    critical_hazards = {"fire", "gas_leak", "electrical_hazard"}
 
     has_critical_inj = any(i["category"] in critical_injuries for i in entities["injuries"])
     has_critical_haz = any(h["category"] in critical_hazards for h in entities["hazards"])
 
     # HIGH: Fractures, heavy bleeding, overturned vehicle, fuel leak
     high_injuries = {"fracture", "bleeding", "serious_injury"}
-    high_hazards = {"fuel_leak", "overturned_vehicle"}
+    high_hazards = {"fuel_leak", "overturned_vehicle", "smoke", "oil_spill", "road_obstruction"}
 
     has_high_inj = any(i["category"] in high_injuries for i in entities["injuries"])
     has_high_haz = any(h["category"] in high_hazards for h in entities["hazards"])
@@ -80,10 +80,17 @@ def analyze_incident(text: str) -> Dict[str, Any]:
     # 3. Contradiction Detection
     contradictions: List[str] = []
 
-    # Check: Caller claims no injuries but mentions specific injury keywords
-    if entities["has_negated_injuries"] and any(w in norm for w in ["unconscious", "bleeding", "fracture", "broken"]):
+    # Negation is scoped to individual phrases during extraction. A negative
+    # general statement plus a separately extracted positive injury/hazard is
+    # therefore surfaced as a contradiction rather than silently suppressing it.
+    if entities["has_negated_injuries"] and entities["injuries"]:
         contradictions.append(
-            "Contradiction: Text contains 'no injuries' claim alongside specific trauma mentions (e.g. bleeding/unconscious)."
+            "Contradiction: A no-injuries statement appears alongside a separately reported injury."
+        )
+
+    if entities["has_negated_hazards"] and entities["hazards"]:
+        contradictions.append(
+            "Contradiction: A no-hazards statement appears alongside a separately reported hazard."
         )
 
     # Check: Single car reported vs two-vehicle collision mention
