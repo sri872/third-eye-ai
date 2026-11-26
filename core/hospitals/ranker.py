@@ -140,13 +140,26 @@ class HospitalRanker:
                 "ranking_reason": " | ".join(reasons),
             })
 
-        ranked.sort(key=lambda item: (
-            item["specialty_penalty"],
-            item["emergency_tag_priority"],
-            item["route"]["estimated_time_minutes"],
-            item["route"]["distance_km"],
-            item["facility"]["name"].lower(),
-        ))
+        # For a critical incident, source-tagged emergency capability is
+        # the first available ranking signal; otherwise use specialty-name
+        # hint compatibility first. Neither OSM tag proves clinical readiness.
+        urgency = str(urgency_level or "HIGH").upper()
+        if urgency == "CRITICAL":
+            ranked.sort(key=lambda item: (
+                item["emergency_tag_priority"],
+                item["specialty_penalty"],
+                item["route"]["estimated_time_minutes"],
+                item["route"]["distance_km"],
+                item["facility"]["name"].lower(),
+            ))
+        else:
+            ranked.sort(key=lambda item: (
+                item["specialty_penalty"],
+                item["emergency_tag_priority"],
+                item["route"]["estimated_time_minutes"],
+                item["route"]["distance_km"],
+                item["facility"]["name"].lower(),
+            ))
         if not ranked:
             return {
                 "error": (
@@ -168,8 +181,14 @@ class HospitalRanker:
             "unroutable_hospitals": unroutable,
             "urgency_level": urgency_level,
             "ranking_method": (
-                "Suitable source-tagged hospital first; specialty mismatch penalty; "
-                "documented emergency tag as secondary evidence; then static road-network time."
+                (
+                    "CRITICAL: documented emergency tag priority, specialty-name hint compatibility, "
+                    "then static road-network time; "
+                    if urgency == "CRITICAL"
+                    else "Specialty-name hint compatibility, documented emergency tag, "
+                         "then static road-network time; "
+                )
+                + "all emergency/capability tags are unverified source metadata."
             ),
             "limitations": (
                 "OpenStreetMap data may be incomplete. Emergency department capability, "
