@@ -163,9 +163,10 @@ def extract_entities(text: str) -> Dict[str, Any]:
                 negated_injury_mentions.append(phrase)
                 continue
             injuries_found.append({"keyword": phrase, "category": canonical_inj})
-    has_negated_injuries = bool(negated_injury_mentions) or bool(
+    general_injury_denial = bool(
         re.search(r"\b(no|zero|without|not)\s+(?:any\s+)?injur", norm)
     )
+    has_negated_injuries = bool(negated_injury_mentions) or general_injury_denial
 
     # 4. Extract hazards with the same local-scope rule.
     hazards_found = []
@@ -176,9 +177,10 @@ def extract_entities(text: str) -> Dict[str, Any]:
                 negated_hazard_mentions.append(phrase)
                 continue
             hazards_found.append({"keyword": phrase, "category": canonical_haz})
-    has_negated_hazards = bool(negated_hazard_mentions) or bool(
-        re.search(r"\b(no|without)\s+(?:any\s+)?(?:fire|smoke|leak|flame|hazard)", norm)
+    general_hazard_denial = bool(
+        re.search(r"\b(no|without)\s+(?:any\s+)?hazards?\b", norm)
     )
+    has_negated_hazards = bool(negated_hazard_mentions) or general_hazard_denial
 
     # 5. Extract Reported People / Casualties count
     people_count = None
@@ -198,6 +200,14 @@ def extract_entities(text: str) -> Dict[str, Any]:
         "people_count_reported": people_count,
         "has_negated_injuries": has_negated_injuries,
         "has_negated_hazards": has_negated_hazards,
+        "general_injury_denial": general_injury_denial,
+        "general_hazard_denial": general_hazard_denial,
+        "negated_injury_categories": [
+            INJURY_KEYWORDS[phrase] for phrase in negated_injury_mentions
+        ],
+        "negated_hazard_categories": [
+            HAZARD_KEYWORDS[phrase] for phrase in negated_hazard_mentions
+        ],
     }
 
 
@@ -205,6 +215,12 @@ def extract_entities(text: str) -> Dict[str, Any]:
 def _is_locally_negated(text: str, phrase_start: int) -> bool:
     """Check whether a symptom/hazard mention is within a short negated phrase."""
     prefix = text[max(0, phrase_start - 42):phrase_start]
+    # A contrast marks the start of a new assertion: "no fire, but fuel is
+    # leaking" negates fire only, not the later fuel-leak statement.
+    for contrast in ("but", "however", "although", "except", "yet"):
+        position = prefix.rfind(contrast)
+        if position >= 0:
+            prefix = prefix[position + len(contrast):]
     patterns = (
         r"\b(?:no|not|never|without|denies|denied|negative for)\s+(?:(?:any|signs? of|evidence of)\s+)?(?:[a-z]+\s+){0,2}$",
         r"\b(?:free of|absence of)\s+(?:[a-z]+\s+){0,2}$",
