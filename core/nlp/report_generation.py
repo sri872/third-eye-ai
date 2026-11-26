@@ -58,7 +58,7 @@ def generate_structured_report(
         "## 1. Computer Vision evidence [REAL CV] [CLASSICAL HEURISTICS]",
         f"- Geometric vehicle candidate regions: {visual_status}",
         f"- Image dimensions: {cv_diagnostics.get('width', 'NOT DETERMINED')} × {cv_diagnostics.get('height', 'NOT DETERMINED')}",
-        f"- Lighting: {cv_diagnostics.get('lighting_condition', 'NOT DETERMINED')}",
+        f"- Exposure assessment (brightness heuristic): {cv_diagnostics.get('exposure_assessment', 'NOT DETERMINED')}",
         f"- Mean brightness: {cv_diagnostics.get('mean_brightness', 'NOT DETERMINED')}",
         f"- Contrast standard deviation: {cv_diagnostics.get('contrast_std', 'NOT DETERMINED')}",
         f"- Sharpness diagnostic: {cv_diagnostics.get('sharpness_laplacian_var', 'NOT DETERMINED')}",
