@@ -87,7 +87,7 @@ def test_contradiction_detection():
 def test_structured_report_generation():
     """Test report generation combining CV, OCR, and NLP."""
     nlp_res = analyze_incident("Two cars collided on GT Road. Driver has broken bone.")
-    cv_diag = {"width": 1280, "height": 720, "lighting_condition": "NORMAL_DAYLIGHT", "sharpness_laplacian_var": 210.5}
+    cv_diag = {"width": 1280, "height": 720, "exposure_assessment": "MID_RANGE_EXPOSURE", "sharpness_laplacian_var": 210.5}
     cv_cands = [{"bbox": [100, 100, 200, 150]}, {"bbox": [400, 120, 180, 140]}]
     ocr_res = {"status": "VERIFIED", "raw_text": "TS07JA0566", "normalized_text": "TS07JA0566", "mean_similarity": 0.88, "is_verified": True, "validation": {"state_name": "Telangana"}}
 
@@ -102,6 +102,7 @@ def test_structured_report_generation():
     assert "[REAL CV]" in md
     assert "[CLASSICAL OCR]" in md
     assert "[CALLER REPORTED]" in md
+    assert "Exposure assessment (brightness heuristic): MID_RANGE_EXPOSURE" in md
     assert "TS07JA0566" in md
     assert "AGREED: Visual candidate count (2) matches caller report (2)" in md
 
