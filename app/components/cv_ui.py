@@ -89,6 +89,10 @@ def render_cv_tab(image_bgr: np.ndarray, image_rgb: np.ndarray):
     )
 
     candidates = localize_vehicle_candidates(enhanced_bgr)
+    vehicle_search_boxes = [item["bbox"] for item in candidates]
+    plate_candidates = localize_plate_candidates(
+        enhanced_bgr, search_regions=vehicle_search_boxes or None
+    )
     annotated_bgr = draw_vehicle_candidates(enhanced_bgr, candidates)
     annotated_rgb = cv2.cvtColor(annotated_bgr, cv2.COLOR_BGR2RGB)
 
@@ -97,6 +101,40 @@ def render_cv_tab(image_bgr: np.ndarray, image_rgb: np.ndarray):
         caption=f"Detected {len(candidates)} Geometric Vehicle Candidate Regions",
         use_container_width=True,
     )
+
+    # 4. Plate-shaped regions are separate proposals, not verified plates.
+    st.markdown("#### Number-Plate Candidate Localization")
+    st.caption(
+        "Classical morphology and edge geometry propose plate-like rectangles. "
+        "OCR validates each crop separately; a green box alone is not a recognized registration."
+    )
+    st.metric("Plate-shaped regions proposed", len(plate_candidates))
+    if plate_candidates:
+        plate_annotated = draw_plate_candidates(enhanced_bgr, plate_candidates)
+        st.image(
+            cv2.cvtColor(plate_annotated, cv2.COLOR_BGR2RGB),
+            caption="Plate-shaped candidate proposals",
+            use_container_width=True,
+        )
+        with st.expander("Plate candidate crop diagnostics"):
+            plate_cols = st.columns(min(4, len(plate_candidates)))
+            for idx, plate in enumerate(plate_candidates):
+                bx, by, bw, bh = plate["bbox"]
+                crop = enhanced_rgb[by:by + bh, bx:bx + bw]
+                with plate_cols[idx % len(plate_cols)]:
+                    st.image(
+                        crop,
+                        caption=f"Plate #{idx + 1} | score {plate['score']:.3f}",
+                        use_container_width=True,
+                    )
+                    st.caption(
+                        f"Box: {plate['bbox']} | aspect ratio: {plate['aspect_ratio']}"
+                    )
+    else:
+        st.warning(
+            "No plate-shaped proposal was found in this image. The OCR tab will report "
+            "that limitation rather than inventing a plate number."
+        )
 
     # Display candidate crops and metrics
     if candidates:
@@ -118,5 +156,6 @@ def render_cv_tab(image_bgr: np.ndarray, image_rgb: np.ndarray):
         "enhanced_rgb": enhanced_rgb,
         "diagnostics": diagnostics,
         "candidates": candidates,
+        "plate_candidates": plate_candidates,
         "edges": edges,
     }
