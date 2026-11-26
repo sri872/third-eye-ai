@@ -153,29 +153,32 @@ def extract_entities(text: str) -> Dict[str, Any]:
     # 2. Extract Locations
     locations_found = _extract_locations(norm)
 
-    # 3. Extract Injuries (checking for negation, e.g. 'no injuries')
+    # 3. Extract injuries with local phrase-level negation. A statement such as
+    # "no injuries, but one driver is bleeding" must retain the later positive cue.
     injuries_found = []
-    has_negated_injuries = bool(re.search(r"\b(no|zero|without|not)\s+(injur|fatal|hurt|casualt|victim|bleed)", norm))
+    negated_injury_mentions = []
+    for phrase, canonical_inj in INJURY_KEYWORDS.items():
+        for match in re.finditer(rf"\b{re.escape(phrase)}\b", norm):
+            if _is_locally_negated(norm, match.start()):
+                negated_injury_mentions.append(phrase)
+                continue
+            injuries_found.append({"keyword": phrase, "category": canonical_inj})
+    has_negated_injuries = bool(negated_injury_mentions) or bool(
+        re.search(r"\b(no|zero|without|not)\s+(?:any\s+)?injur", norm)
+    )
 
-    if not has_negated_injuries:
-        for phrase, canonical_inj in INJURY_KEYWORDS.items():
-            if re.search(rf"\b{phrase}\b", norm):
-                injuries_found.append({
-                    "keyword": phrase,
-                    "category": canonical_inj
-                })
-
-    # 4. Extract Hazards (checking for negation)
+    # 4. Extract hazards with the same local-scope rule.
     hazards_found = []
-    has_negated_hazards = bool(re.search(r"\b(no|without)\s+(fire|smoke|leak|flame|hazard)", norm))
-
-    if not has_negated_hazards:
-        for phrase, canonical_haz in HAZARD_KEYWORDS.items():
-            if re.search(rf"\b{phrase}\b", norm):
-                hazards_found.append({
-                    "keyword": phrase,
-                    "category": canonical_haz
-                })
+    negated_hazard_mentions = []
+    for phrase, canonical_haz in HAZARD_KEYWORDS.items():
+        for match in re.finditer(rf"\b{re.escape(phrase)}\b", norm):
+            if _is_locally_negated(norm, match.start()):
+                negated_hazard_mentions.append(phrase)
+                continue
+            hazards_found.append({"keyword": phrase, "category": canonical_haz})
+    has_negated_hazards = bool(negated_hazard_mentions) or bool(
+        re.search(r"\b(no|without)\s+(?:any\s+)?(?:fire|smoke|leak|flame|hazard)", norm)
+    )
 
     # 5. Extract Reported People / Casualties count
     people_count = None
@@ -196,6 +199,17 @@ def extract_entities(text: str) -> Dict[str, Any]:
         "has_negated_injuries": has_negated_injuries,
         "has_negated_hazards": has_negated_hazards,
     }
+
+
+
+def _is_locally_negated(text: str, phrase_start: int) -> bool:
+    """Check whether a symptom/hazard mention is within a short negated phrase."""
+    prefix = text[max(0, phrase_start - 42):phrase_start]
+    patterns = (
+        r"\b(?:no|not|never|without|denies|denied|negative for)\s+(?:(?:any|signs? of|evidence of)\s+)?(?:[a-z]+\s+){0,2}$",
+        r"\b(?:free of|absence of)\s+(?:[a-z]+\s+){0,2}$",
+    )
+    return any(re.search(pattern, prefix) for pattern in patterns)
 
 
 def _extract_locations(text: str) -> List[str]:
