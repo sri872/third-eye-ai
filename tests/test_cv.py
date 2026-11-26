@@ -109,7 +109,7 @@ def test_compute_image_diagnostics(synthetic_image):
     assert diag["channels"] == 3
     assert diag["mean_brightness"] > 0
     assert diag["sharpness_laplacian_var"] > 0
-    assert diag["lighting_condition"] in ("NORMAL_DAYLIGHT", "LOW_LIGHT_OR_NIGHT", "HIGH_GLARE_OR_OVEREXPOSED")
+    assert diag["exposure_assessment"] in ("MID_RANGE_EXPOSURE", "LOW_EXPOSURE", "HIGH_EXPOSURE_OR_GLARE")
 
 
 def test_localize_vehicle_candidates(synthetic_image):
