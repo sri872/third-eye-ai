@@ -47,6 +47,23 @@ def test_load_image_numpy(synthetic_image):
     assert bgr[160, 200, 2] == rgb[160, 200, 0]  # Red channel matches
 
 
+def test_load_image_preserves_portrait_orientation():
+    """Portrait inputs are not automatically rotated based on aspect ratio."""
+    portrait = np.zeros((400, 200, 3), dtype=np.uint8)
+    bgr, rgb = load_image(portrait)
+    assert bgr.shape == portrait.shape
+    assert rgb.shape == portrait.shape
+
+
+def test_load_image_explicit_counterclockwise_rotation():
+    """Explicit rotation is applied only when the caller requests it."""
+    portrait = np.zeros((400, 200, 3), dtype=np.uint8)
+    portrait[20:80, 10:40] = (0, 0, 255)
+    bgr, _ = load_image(portrait, rotation_degrees=270)
+    expected = cv2.rotate(portrait, cv2.ROTATE_90_COUNTERCLOCKWISE)
+    assert np.array_equal(bgr, expected)
+
+
 def test_load_image_invalid():
     """Test invalid input raises ValueError."""
     with pytest.raises(ValueError):
