@@ -31,7 +31,10 @@ class TemplateRecognizer:
         self.template_dir = template_dir
         self.letter_templates: Dict[str, np.ndarray] = {}
         self.digit_templates: Dict[str, np.ndarray] = {}
+        self.letter_template_bank: Dict[str, List[np.ndarray]] = {}
+        self.digit_template_bank: Dict[str, List[np.ndarray]] = {}
         self._load_or_generate_templates()
+        self._build_template_banks()
 
     def _load_or_generate_templates(self) -> None:
         """Load templates from disk or synthesize them if not yet generated."""
@@ -69,31 +72,78 @@ class TemplateRecognizer:
                 self.digit_templates[d] = synth
                 cv2.imwrite(p, synth)
 
-    def _synthesize_char_template(self, char: str) -> np.ndarray:
-        """Synthesize high-contrast binary template for a character."""
+    def _synthesize_char_template(
+        self,
+        char: str,
+        font: int = cv2.FONT_HERSHEY_SIMPLEX,
+        scale: float = 2.7,
+        thickness: int = 5,
+    ) -> np.ndarray:
+        """Render and normalize one deterministic OpenCV glyph template."""
         canvas = np.zeros((TEMPLATE_HEIGHT * 3, TEMPLATE_WIDTH * 3), dtype=np.uint8)
-        font = cv2.FONT_HERSHEY_SIMPLEX
-        (tw, th), baseline = cv2.getTextSize(char, font, 2.7, 5)
-        x = (canvas.shape[1] - tw) // 2
-        y = (canvas.shape[0] + th) // 2 - baseline
-        cv2.putText(canvas, char, (x, y), font, 2.7, 255, 5, cv2.LINE_AA)
+        (tw, th), baseline = cv2.getTextSize(char, font, scale, thickness)
+        x = max(0, (canvas.shape[1] - tw) // 2)
+        y = max(th, (canvas.shape[0] + th) // 2 - baseline)
+        cv2.putText(
+            canvas, char, (x, y), font, scale, 255, thickness, cv2.LINE_AA
+        )
 
         coords = cv2.findNonZero(canvas)
-        if coords is not None:
-            bx, by, bw, bh = cv2.boundingRect(coords)
-            char_crop = canvas[by : by + bh, bx : bx + bw]
-            pad_y = max(1, int(bh * 0.10))
-            pad_x = max(1, int(bw * 0.10))
-            padded = cv2.copyMakeBorder(
-                char_crop, pad_y, pad_y, pad_x, pad_x, cv2.BORDER_CONSTANT, value=0
-            )
-            resized = cv2.resize(
-                padded, (TEMPLATE_WIDTH, TEMPLATE_HEIGHT), interpolation=cv2.INTER_AREA
-            )
-            _, binary = cv2.threshold(resized, 127, 255, cv2.THRESH_BINARY)
-            return binary
-        else:
-            return cv2.resize(canvas, (TEMPLATE_WIDTH, TEMPLATE_HEIGHT))
+        if coords is None:
+            return np.zeros((TEMPLATE_HEIGHT, TEMPLATE_WIDTH), dtype=np.uint8)
+
+        bx, by, bw, bh = cv2.boundingRect(coords)
+        char_crop = canvas[by:by + bh, bx:bx + bw]
+        pad_y = max(1, int(bh * 0.10))
+        pad_x = max(1, int(bw * 0.10))
+        padded = cv2.copyMakeBorder(
+            char_crop, pad_y, pad_y, pad_x, pad_x,
+            cv2.BORDER_CONSTANT, value=0,
+        )
+        resized = cv2.resize(
+            padded, (TEMPLATE_WIDTH, TEMPLATE_HEIGHT),
+            interpolation=cv2.INTER_AREA,
+        )
+        _, binary = cv2.threshold(resized, 127, 255, cv2.THRESH_BINARY)
+        return binary
+
+    def _build_template_banks(self) -> None:
+        """Build several deterministic font/weight variants for each glyph.
+
+        Templates are generic OpenCV-rendered examples, not real-world plate
+        training data. Multiple variants reduce dependence on one font weight.
+        """
+        fonts = (
+            cv2.FONT_HERSHEY_SIMPLEX,
+            cv2.FONT_HERSHEY_DUPLEX,
+            cv2.FONT_HERSHEY_COMPLEX,
+            cv2.FONT_HERSHEY_TRIPLEX,
+            cv2.FONT_HERSHEY_PLAIN,
+        )
+        scales_and_weights = (
+            (1.8, 2), (2.2, 2), (2.4, 3), (2.7, 4), (2.7, 5),
+        )
+        for glyph, base in self.letter_templates.items():
+            variants = [base]
+            for font in fonts:
+                for scale, thickness in scales_and_weights:
+                    candidate = self._synthesize_char_template(
+                        glyph, font=font, scale=scale, thickness=thickness
+                    )
+                    if not any(np.array_equal(candidate, item) for item in variants):
+                        variants.append(candidate)
+            self.letter_template_bank[glyph] = variants
+
+        for glyph, base in self.digit_templates.items():
+            variants = [base]
+            for font in fonts:
+                for scale, thickness in scales_and_weights:
+                    candidate = self._synthesize_char_template(
+                        glyph, font=font, scale=scale, thickness=thickness
+                    )
+                    if not any(np.array_equal(candidate, item) for item in variants):
+                        variants.append(candidate)
+            self.digit_template_bank[glyph] = variants
 
     def match_character(
         self,
@@ -121,34 +171,38 @@ class TemplateRecognizer:
             )
             _, char_img = cv2.threshold(char_img, 127, 255, cv2.THRESH_BINARY)
 
-        targets: Dict[str, np.ndarray] = {}
+        targets: Dict[str, List[np.ndarray]] = {}
         if prior == "letter":
-            targets = self.letter_templates
+            targets = self.letter_template_bank
         elif prior == "digit":
-            targets = self.digit_templates
+            targets = self.digit_template_bank
         else:
-            targets = {**self.letter_templates, **self.digit_templates}
+            targets = {**self.letter_template_bank, **self.digit_template_bank}
 
         scores: List[Tuple[str, float]] = []
-
         char_bool = char_img > 127
 
-        for ch, tmpl in targets.items():
-            tmpl_bool = tmpl > 127
+        for glyph, templates in targets.items():
+            best_similarity = 0.0
+            for template in templates:
+                template_bool = template > 127
 
-            # 1. Normalized cross correlation via template matching
-            res = cv2.matchTemplate(char_img, tmpl, cv2.TM_CCOEFF_NORMED)
-            corr = float(res[0][0]) if res is not None else 0.0
-            norm_corr = max(0.0, (corr + 1.0) / 2.0)  # Map [-1, 1] to [0, 1]
+                # Normalized cross-correlation captures stroke arrangement.
+                correlation = cv2.matchTemplate(
+                    char_img, template, cv2.TM_CCOEFF_NORMED
+                )
+                corr = float(correlation[0][0]) if correlation is not None else 0.0
+                normalized_corr = max(0.0, (corr + 1.0) / 2.0)
 
-            # 2. Binary Jaccard IoU similarity
-            intersection = np.logical_and(char_bool, tmpl_bool).sum()
-            union = np.logical_or(char_bool, tmpl_bool).sum()
-            iou = float(intersection) / float(union) if union > 0 else 0.0
+                # Binary Jaccard overlap adds a shape-level comparison.
+                intersection = np.logical_and(char_bool, template_bool).sum()
+                union = np.logical_or(char_bool, template_bool).sum()
+                jaccard = float(intersection) / float(union) if union else 0.0
 
-            # Combined similarity metric
-            sim = 0.65 * norm_corr + 0.35 * iou
-            scores.append((ch, round(sim, 4)))
+                similarity = 0.65 * normalized_corr + 0.35 * jaccard
+                best_similarity = max(best_similarity, similarity)
+
+            scores.append((glyph, round(best_similarity, 4)))
 
         scores.sort(key=lambda s: s[1], reverse=True)
 
