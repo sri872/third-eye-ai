@@ -101,9 +101,21 @@ class ClassicalPlateReader:
         if not attempts or max(item["character_count"] for item in attempts) == 0:
             result = self._empty_result("UNREADABLE", ground_truth)
             result["threshold_variants_tried"] = [item[0] for item in variants]
+            result["variant_attempts"] = [
+                {
+                    "method": item["preprocessing_method"],
+                    "raw_text": item["raw_text"],
+                    "character_count": item["character_count"],
+                    "mean_similarity": item["mean_similarity"],
+                    "format_valid": item["validation"]["is_valid"],
+                    "rank_score": item["rank_score"],
+                }
+                for item in attempts
+            ]
             if attempts:
                 result["binary_plate"] = attempts[0]["binary_plate"]
                 result["enhanced_gray"] = attempts[0]["enhanced_gray"]
+            result["similarity_is_probability"] = False
             return result
 
         # Prefer syntactically valid candidates; then rank by glyph similarity
