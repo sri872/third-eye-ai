@@ -55,12 +55,18 @@ def render_cv_tab(image_bgr: np.ndarray, image_rgb: np.ndarray):
     edges = detect_edges(gray, low_thresh=canny_low, high_thresh=canny_high)
 
     # 1. Image Quality Diagnostics
-    diagnostics = compute_image_diagnostics(enhanced_bgr)
+    diagnostics = compute_image_diagnostics(image_bgr)
+    enhanced_diagnostics = compute_image_diagnostics(enhanced_bgr)
     col_d1, col_d2, col_d3, col_d4 = st.columns(4)
     col_d1.metric("Dimensions", f"{diagnostics['width']} × {diagnostics['height']}")
-    col_d2.metric("Mean Brightness", f"{diagnostics['mean_brightness']}")
+    col_d2.metric("Input Mean Brightness", f"{diagnostics['mean_brightness']}")
     col_d3.metric("Lighting Assessment", diagnostics["lighting_condition"])
-    col_d4.metric("Clarity (Laplacian)", f"{diagnostics['sharpness_laplacian_var']:.1f}")
+    col_d4.metric("Input Clarity (Laplacian)", f"{diagnostics['sharpness_laplacian_var']:.1f}")
+    st.caption(
+        f"After current enhancement controls: brightness {enhanced_diagnostics['mean_brightness']:.2f}, "
+        f"exposure {enhanced_diagnostics['exposure_assessment']}, "
+        f"clarity {enhanced_diagnostics['sharpness_laplacian_var']:.1f}"
+    )
 
     # 2. Side-by-side: Original vs Processed Edge View
     st.markdown("#### Visual Transformations")
