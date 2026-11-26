@@ -9,7 +9,7 @@ import pytest
 import numpy as np
 import cv2
 
-from core.ocr.preprocessing import preprocess_plate
+from core.ocr.preprocessing import preprocess_plate, preprocess_plate_variants
 from core.ocr.character_segmentation import segment_characters
 from core.ocr.template_recognition import TemplateRecognizer, LETTERS, DIGITS
 from core.ocr.plate_validation import validate_indian_plate
@@ -128,3 +128,23 @@ def test_plate_reader_empty():
     res = reader.read_plate(np.zeros((0, 0, 3), dtype=np.uint8))
     assert res["status"] == "NO_PLATE_DETECTED"
     assert res["is_verified"] is False
+
+
+def test_preprocess_plate_variants_produce_valid_binary_masks(synthetic_plate_image):
+    variants = preprocess_plate_variants(synthetic_plate_image)
+    assert variants
+    for method, enhanced, binary in variants:
+        assert method
+        assert enhanced.ndim == 2
+        assert binary.shape == enhanced.shape
+        assert binary.dtype == np.uint8
+        assert set(np.unique(binary)).issubset({0, 255})
+
+
+def test_ocr_without_ground_truth_is_never_marked_verified(synthetic_plate_image):
+    reader = ClassicalPlateReader()
+    result = reader.read_plate(synthetic_plate_image)
+    assert result["status"] != "VERIFIED"
+    assert result["is_verified"] is False
+    assert result["similarity_is_probability"] is False
+    assert result.get("variant_attempts") is not None
