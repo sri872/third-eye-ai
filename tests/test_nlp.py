@@ -104,3 +104,31 @@ def test_structured_report_generation():
     assert "[CALLER REPORTED]" in md
     assert "TS07JA0566" in md
     assert "AGREED: Visual candidate count (2) matches caller report (2)" in md
+
+
+def test_negation_is_scoped_to_the_matching_injury_mention():
+    """A general denial must not erase a later positive injury assertion."""
+    result = analyze_incident(
+        "Caller first says no injuries, but the driver is bleeding."
+    )
+    entities = result["entities"]
+    assert entities["has_negated_injuries"] is True
+    assert any(item["category"] == "bleeding" for item in entities["injuries"])
+    assert result["has_contradictions"] is True
+    assert result["urgency_level"] == "HIGH"
+
+
+def test_negation_does_not_cross_contrast_into_an_unrelated_hazard():
+    """'No fire, but fuel leak' reports a fuel leak without reporting fire."""
+    result = analyze_incident("There is no fire, but a petrol leak beside the car.")
+    entities = result["entities"]
+    assert not any(item["category"] == "fire" for item in entities["hazards"])
+    assert any(item["category"] == "fuel_leak" for item in entities["hazards"])
+    assert not result["has_contradictions"]
+    assert result["urgency_level"] == "HIGH"
+
+
+def test_same_hazard_both_denied_and_reported_is_a_contradiction():
+    result = analyze_incident("Caller says no fire, but witnesses report fire.")
+    assert result["has_contradictions"] is True
+    assert any(item["category"] == "fire" for item in result["entities"]["hazards"])
