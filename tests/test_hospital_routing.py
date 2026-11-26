@@ -166,3 +166,40 @@ def test_ranker_rejects_missing_sos_coordinates():
     result = HospitalRanker(catalog=object(), router=object()).rank_hospitals(None)
     assert "error" in result
     assert result["primary_recommendation"] is None
+
+
+def test_critical_incident_prioritizes_documented_emergency_tag():
+    class FakeCatalog:
+        def get_eligible_facilities(self, require_hospital_tier=True):
+            return [
+                {
+                    "id": "general", "name": "General Hospital",
+                    "latitude": 31.2200, "longitude": 75.7720,
+                    "category": "hospital", "has_documented_emergency": False,
+                    "speciality": None, "emergency_tag": None, "phone": None,
+                    "address": "General Road, Phagwara, Punjab, India",
+                },
+                {
+                    "id": "tagged", "name": "Emergency Tagged Hospital",
+                    "latitude": 31.2200, "longitude": 75.7720,
+                    "category": "hospital", "has_documented_emergency": True,
+                    "speciality": "ophthalmology", "emergency_tag": "yes", "phone": None,
+                    "address": "Hospital Road, Phagwara, Punjab, India",
+                },
+            ]
+
+    class FakeRouter:
+        def calculate_route(self, start_lat, start_lon, dest_lat, dest_lon):
+            return {
+                "is_road_network": True,
+                "distance_km": 1.0,
+                "estimated_time_minutes": 2.0,
+                "google_maps_url": "https://maps.example/route",
+                "route_source": "TEST_GRAPH",
+            }
+
+    result = HospitalRanker(
+        catalog=FakeCatalog(), router=FakeRouter()
+    ).rank_hospitals(make_sos(), urgency_level="CRITICAL")
+    assert result["primary_recommendation"]["facility"]["name"] == "Emergency Tagged Hospital"
+    assert "CRITICAL" in result["ranking_method"]
