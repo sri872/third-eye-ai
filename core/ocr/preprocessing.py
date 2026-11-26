@@ -61,6 +61,65 @@ def preprocess_plate(
     return enhanced, otsu
 
 
+
+def preprocess_plate_variants(
+    plate_bgr: np.ndarray,
+    target_height: int = 80,
+    deskew: bool = True,
+) -> list[tuple[str, np.ndarray, np.ndarray]]:
+    """Return several polarity/threshold variants for robust classical segmentation.
+
+    Each result is (method_name, enhanced_gray, binary_with_white_glyphs).
+    This deliberately exposes multiple deterministic threshold choices instead
+    of assuming one lighting/polarity model works for every plate.
+    """
+    enhanced, otsu_inverse = preprocess_plate(
+        plate_bgr, target_height=target_height, deskew=deskew
+    )
+    h, w = enhanced.shape[:2]
+    variants: list[tuple[str, np.ndarray, np.ndarray]] = []
+
+    def normalize_polarity(binary: np.ndarray) -> np.ndarray:
+        # Characters should be foreground. For a crop whose outer border is
+        # mostly white, invert so plate background becomes black.
+        border = np.concatenate((binary[0, :], binary[-1, :], binary[:, 0], binary[:, -1]))
+        return cv2.bitwise_not(binary) if float(np.mean(border)) > 127.0 else binary
+
+    variants.append(("OTSU", enhanced, normalize_polarity(otsu_inverse)))
+
+    block = min(31, min(h, w) if min(h, w) % 2 else min(h, w) - 1)
+    block = max(3, block)
+    if block % 2 == 0:
+        block -= 1
+
+    for method, polarity in (
+        ("ADAPTIVE_GAUSSIAN", cv2.THRESH_BINARY_INV),
+        ("ADAPTIVE_MEAN", cv2.THRESH_BINARY_INV),
+    ):
+        adaptive_method = (
+            cv2.ADAPTIVE_THRESH_GAUSSIAN_C
+            if method == "ADAPTIVE_GAUSSIAN"
+            else cv2.ADAPTIVE_THRESH_MEAN_C
+        )
+        binary = cv2.adaptiveThreshold(
+            enhanced, 255, adaptive_method, polarity, block, 7
+        )
+        variants.append((method, enhanced, normalize_polarity(binary)))
+
+    # A light median-cleaned Otsu branch helps noisy/compressed plate crops.
+    median = cv2.medianBlur(enhanced, 3)
+    _, cleaned = cv2.threshold(
+        median, 0, 255, cv2.THRESH_BINARY_INV + cv2.THRESH_OTSU
+    )
+    variants.append(("MEDIAN_OTSU", enhanced, normalize_polarity(cleaned)))
+
+    # Remove byte-identical variants; retain the first method label.
+    unique: list[tuple[str, np.ndarray, np.ndarray]] = []
+    for item in variants:
+        if not any(np.array_equal(item[2], prior[2]) for prior in unique):
+            unique.append(item)
+    return unique
+
 def _deskew_plate(gray: np.ndarray) -> np.ndarray:
     """Estimate and correct rotational skew of plate crop."""
     # Compute horizontal edges
