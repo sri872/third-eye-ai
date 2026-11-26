@@ -80,17 +80,28 @@ def analyze_incident(text: str) -> Dict[str, Any]:
     # 3. Contradiction Detection
     contradictions: List[str] = []
 
-    # Negation is scoped to individual phrases during extraction. A negative
-    # general statement plus a separately extracted positive injury/hazard is
-    # therefore surfaced as a contradiction rather than silently suppressing it.
-    if entities["has_negated_injuries"] and entities["injuries"]:
+    # Only flag a contradiction when a general denial conflicts with a
+    # positive item, or the same specific category is both denied and reported.
+    positive_injury_categories = {
+        item["category"] for item in entities.get("injuries", [])
+    }
+    negated_injury_categories = set(entities.get("negated_injury_categories", []))
+    if (
+        entities.get("general_injury_denial") and positive_injury_categories
+    ) or positive_injury_categories.intersection(negated_injury_categories):
         contradictions.append(
-            "Contradiction: A no-injuries statement appears alongside a separately reported injury."
+            "Contradiction: An injury denial conflicts with a separately reported injury cue."
         )
 
-    if entities["has_negated_hazards"] and entities["hazards"]:
+    positive_hazard_categories = {
+        item["category"] for item in entities.get("hazards", [])
+    }
+    negated_hazard_categories = set(entities.get("negated_hazard_categories", []))
+    if (
+        entities.get("general_hazard_denial") and positive_hazard_categories
+    ) or positive_hazard_categories.intersection(negated_hazard_categories):
         contradictions.append(
-            "Contradiction: A no-hazards statement appears alongside a separately reported hazard."
+            "Contradiction: A hazard denial conflicts with a separately reported hazard cue."
         )
 
     # Check: Single car reported vs two-vehicle collision mention
