@@ -48,7 +48,12 @@ with st.sidebar:
         if not os.path.exists(image_path):
             image_path = os.path.join(BASE_DIR, "data", "samples", demo_images[chosen_label])
         if os.path.exists(image_path):
-            image_bgr, image_rgb = load_image(image_path)
+            # This supplied plate demo is stored sideways without EXIF orientation.
+            # Rotate only this known asset; preserve the orientation of all other images.
+            rotation_degrees = 270 if "TS07JA0566" in chosen_label else 0
+            image_bgr, image_rgb = load_image(
+                image_path, rotation_degrees=rotation_degrees
+            )
             if "TS07JA0566" in chosen_label:
                 ground_truth = "TS07JA0566"
         else:
