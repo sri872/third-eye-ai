@@ -34,6 +34,7 @@ def render_ocr_tab(
     image_bgr: np.ndarray,
     cv_candidates: Optional[list] = None,
     ground_truth: Optional[str] = None,
+    plate_candidates: Optional[list] = None,
 ):
     """Localize multiple plate proposals, OCR each and rank by transparent evidence."""
     st.subheader("2. Indian Number Plate OCR — classical image processing")
@@ -56,7 +57,11 @@ def render_ocr_tab(
     # Search the full frame and the geometric CV regions together. A weak ROI
     # result must never suppress the full-frame search.
     search_boxes = [c.get("bbox") for c in (cv_candidates or []) if c.get("bbox")]
-    plates = localize_plate_candidates(image_bgr, search_regions=search_boxes or None)
+    plates = (
+        plate_candidates
+        if plate_candidates is not None
+        else localize_plate_candidates(image_bgr, search_regions=search_boxes or None)
+    )
 
     if not plates:
         st.warning(
