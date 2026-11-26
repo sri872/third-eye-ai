@@ -36,11 +36,22 @@ def assess_accident_evidence(
 
     if nlp_analysis:
         entities = nlp_analysis.get("entities", {})
-        has_caller_accident = nlp_analysis.get("primary_incident_type") in (
-            "VEHICLE_COLLISION", "ROLLOVER_COLLISION", "HAZARDOUS_FIRE_OR_SPILL", "MULTI_VEHICLE_COLLISION"
-        ) or nlp_analysis.get("urgency_level") in ("CRITICAL", "HIGH")
         reported_injuries = entities.get("injuries", [])
         reported_hazards = entities.get("hazards", [])
+        caller_incident_types = set(nlp_analysis.get("all_incident_types") or [])
+        caller_incident_types.add(nlp_analysis.get("primary_incident_type"))
+        explicit_collision = bool(
+            caller_incident_types.intersection({
+                "VEHICLE_COLLISION",
+                "ROLLOVER_COLLISION",
+                "MULTI_VEHICLE_COLLISION",
+            })
+        )
+        # Urgency by itself is not proof of an accident. A severe injury/hazard
+        # or an explicit collision/rollover report is a caller-side indicator.
+        has_caller_accident = bool(
+            explicit_collision or reported_injuries or reported_hazards
+        )
 
     # Multi-Signal Deterministic Decision Logic
     # 1. Corroborated Accident Evidence: Significant geometric overlap AND positive caller report
