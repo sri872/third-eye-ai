@@ -170,6 +170,7 @@ with tab_ocr:
             image_bgr,
             cv_candidates=cv_data.get("candidates") if cv_data else None,
             ground_truth=ground_truth,
+            plate_candidates=cv_data.get("plate_candidates") if cv_data else None,
         )
 
 with tab_nlp:
