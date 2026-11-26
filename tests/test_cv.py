@@ -160,3 +160,17 @@ def test_visualization_drawing(synthetic_image):
 
     combined = create_processing_overview(synthetic_image, cand, plate)
     assert combined.shape == synthetic_image.shape
+
+
+def test_plate_localizer_includes_full_frame_when_vehicle_regions_are_supplied(synthetic_image):
+    # The explicit ROI is deliberately on the left. The full frame must still
+    # be included in the search rather than being silently replaced by ROIs.
+    candidates = localize_plate_candidates(
+        synthetic_image,
+        search_regions=[(0, 0, 100, 100)],
+        min_area=20,
+    )
+    assert isinstance(candidates, list)
+    for candidate in candidates:
+        assert candidate["method"] == "MULTI_PATH_CLASSICAL_MORPHOLOGY"
+        assert len(candidate["bbox"]) == 4
