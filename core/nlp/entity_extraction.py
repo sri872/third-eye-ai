@@ -12,12 +12,16 @@ from core.nlp.text_normalization import normalize_text, tokenize_words
 # Dictionaries for entity extraction
 VEHICLE_KEYWORDS = {
     "car": "car",
+    "vehicle": "vehicle",
+    "automobile": "car",
     "sedan": "car",
     "hatchback": "car",
     "suv": "suv",
     "jeep": "suv",
     "truck": "truck",
     "lorry": "truck",
+    "tractor": "tractor",
+    "pickup": "pickup_truck",
     "semi": "truck",
     "bus": "bus",
     "minibus": "bus",
@@ -55,6 +59,13 @@ INJURY_KEYWORDS = {
     "fracture": "fracture",
     "broken bone": "fracture",
     "head injury": "head_injury",
+    "chest pain": "chest_pain",
+    "difficulty breathing": "breathing_difficulty",
+    "breathing difficulty": "breathing_difficulty",
+    "shortness of breath": "breathing_difficulty",
+    "seizure": "seizure",
+    "burns": "burn",
+    "burn": "burn",
     "trapped": "trapped_occupant",
     "stuck inside": "trapped_occupant",
     "injured": "general_injury",
@@ -84,6 +95,8 @@ HAZARD_KEYWORDS = {
     "highway blocked": "road_obstruction",
     "power line": "electrical_hazard",
     "live wire": "electrical_hazard",
+    "fallen wire": "electrical_hazard",
+    "electrical wire": "electrical_hazard",
 }
 
 NUMBER_WORDS = {
