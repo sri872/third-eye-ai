@@ -132,3 +132,22 @@ def test_same_hazard_both_denied_and_reported_is_a_contradiction():
     result = analyze_incident("Caller says no fire, but witnesses report fire.")
     assert result["has_contradictions"] is True
     assert any(item["category"] == "fire" for item in result["entities"]["hazards"])
+
+
+def test_collision_language_without_vehicle_count_is_classified():
+    result = analyze_incident("A vehicle collided with a divider near Phagwara.")
+    assert result["primary_incident_type"] == "VEHICLE_COLLISION"
+
+
+def test_negated_accident_language_does_not_create_collision_category():
+    result = analyze_incident("No accident occurred; the road is blocked by construction.")
+    assert "VEHICLE_COLLISION" not in result["all_incident_types"]
+
+
+def test_breathing_difficulty_triggers_critical_urgency():
+    result = analyze_incident("The passenger has difficulty breathing after the crash.")
+    assert result["urgency_level"] == "CRITICAL"
+    assert any(
+        item["category"] == "breathing_difficulty"
+        for item in result["entities"]["injuries"]
+    )
