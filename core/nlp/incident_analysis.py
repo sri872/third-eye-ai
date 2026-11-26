@@ -56,7 +56,7 @@ def analyze_incident(text: str) -> Dict[str, Any]:
     explicit_collision = any(
         not _is_locally_negated(norm, match.start())
         for term in collision_terms
-        for match in re.finditer(rf"\\b{term}\\b", norm)
+        for match in re.finditer(rf"\b{term}\b", norm)
     )
     if explicit_collision and not any(
         kind in incident_types
