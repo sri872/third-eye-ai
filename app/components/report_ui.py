@@ -1,7 +1,7 @@
 """Streamlit UI Component for Combined Forensic Incident Report.
 
-Combines visual CV evidence, OCR readings, and NLP caller extractions
-into an executive multi-source forensic summary with explicit provenance.
+Combines visual CV evidence, OCR readings, NLP caller extractions,
+SOS location coordinates, and intelligent hospital routing into an executive report.
 """
 
 from typing import Dict, Any, Optional
@@ -15,11 +15,14 @@ def render_report_tab(
     cv_candidates: Optional[list] = None,
     ocr_result: Optional[Dict[str, Any]] = None,
     nlp_analysis: Optional[Dict[str, Any]] = None,
+    sos_location: Optional[Any] = None,
+    hospital_data: Optional[Dict[str, Any]] = None,
+    accident_assessment: Optional[Dict[str, Any]] = None,
 ):
-    """Render Section 4: Combined Incident Forensic Report."""
-    st.subheader("4. Combined Multi-Source Incident Report")
+    """Render Section 5: Combined Incident Forensic Report."""
+    st.subheader("5. Combined Multi-Source Forensic Report")
     st.markdown(
-        "Source-separated forensic synthesis of **Visual CV**, **Classical OCR**, and **Caller NLP** findings."
+        "Source-separated synthesis of **Visual CV**, **Classical OCR**, **Caller NLP**, **SOS GPS**, and **Road Routing** findings."
     )
 
     report_data = generate_structured_report(
@@ -27,6 +30,9 @@ def render_report_tab(
         cv_candidates=cv_candidates,
         plate_ocr_result=ocr_result,
         nlp_analysis=nlp_analysis,
+        sos_location=sos_location,
+        hospital_routing_result=hospital_data,
+        accident_assessment=accident_assessment,
     )
 
     # Cross-Verification Status Banner

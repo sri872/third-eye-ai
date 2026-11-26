@@ -1,33 +1,35 @@
-"""THIRD EYE AI — Classical Computer Vision, Number Plate OCR & NLP Incident Analysis.
+"""THIRD EYE AI — Classical Computer Vision, Number Plate OCR, NLP, SOS Location & Hospital Routing.
 
 Main Streamlit Application Entrypoint.
-Focused exclusively on classical OpenCV image processing, deterministic template-matching OCR,
-and rule-based NLP incident extraction without ML, DL, or RAG models.
+Focused on deterministic CV, classical template-matching OCR, rule-based NLP,
+and road-network emergency hospital routing without ML, DL, or RAG models.
 """
 
 import os
-from typing import Optional
 import streamlit as st
 import cv2
 
 from core.cv.image_processing import load_image
+from core.accident.evidence_assessment import assess_accident_evidence
 from app.components.cv_ui import render_cv_tab
 from app.components.ocr_ui import render_ocr_tab
 from app.components.nlp_ui import render_nlp_tab
+from app.components.sos_ui import render_sos_location_component
+from app.components.routing_ui import render_hospital_routing_tab
 from app.components.report_ui import render_report_tab
 
 
 # Page configuration
 st.set_page_config(
-    page_title="Third Eye AI — CV, OCR & NLP",
-    page_icon="👁️",
+    page_title="Third Eye AI — CV, OCR, NLP & Emergency Routing",
+    page_icon="🚑",
     layout="wide",
     initial_sidebar_state="expanded",
 )
 
-st.title("Third Eye AI 👁️")
+st.title("Third Eye AI 🚑")
 st.caption(
-    "Classical Computer Vision, Indian Number Plate OCR & Deterministic NLP Incident Analysis"
+    "Classical Computer Vision, Indian Number Plate OCR, Rule-Based NLP & Intelligent Hospital Routing"
 )
 
 
@@ -41,9 +43,9 @@ SAMPLE_CALLS_DIR = os.path.join(BASE_DIR, "data", "sample_calls")
 # SIDEBAR CONTROLS
 # -------------------------------------------------------------
 with st.sidebar:
-    st.header("📸 Media & Scenario Selection")
+    st.header("⚙️ Incident Inputs & Media")
 
-    # Image selection
+    # 1. Image selection
     st.subheader("1. Visual Input (Image)")
     demo_images = {
         "Single Car Plate (TS07JA0566)": "single_car_plate.jpg",
@@ -60,7 +62,6 @@ with st.sidebar:
         chosen_filename = demo_images[chosen_label]
         img_path = os.path.join(SAMPLES_DIR, chosen_filename)
         if not os.path.exists(img_path):
-            # Fallback to data/samples
             img_path = os.path.join(BASE_DIR, "data", "samples", chosen_filename)
 
         if os.path.exists(img_path):
@@ -79,7 +80,7 @@ with st.sidebar:
 
     st.divider()
 
-    # Caller text selection
+    # 2. Caller text selection
     st.subheader("2. Caller Transcript (NLP)")
     call_options = {
         "Collision on Highway (High Urgency)": "call_demo_01_collision.txt",
@@ -112,7 +113,8 @@ with st.sidebar:
         "- CV: Classical OpenCV (Contours, Sobel, Morphology)\n"
         "- OCR: Template Matching for Indian Plates\n"
         "- NLP: Deterministic Regex & Rule-Based Extraction\n"
-        "*(No PyTorch, YOLO, EasyOCR, or LLMs)*"
+        "- Routing: Real Road Graph NetworkX Router\n"
+        "*(Zero PyTorch, YOLO, EasyOCR, or LLMs)*"
     )
 
 
@@ -123,11 +125,12 @@ if image_bgr is None:
     st.warning("Please select or upload an image to begin analysis.")
     st.stop()
 
-tab_cv, tab_ocr, tab_nlp, tab_report = st.tabs([
+tab_cv, tab_ocr, tab_nlp, tab_sos, tab_report = st.tabs([
     "📸 Computer Vision",
     "🔤 Plate OCR",
-    "📝 NLP Analysis",
-    "📊 Combined Incident Report",
+    "📝 NLP & Evidence",
+    "📍 SOS & Hospital Route",
+    "📊 Combined Forensic Report",
 ])
 
 with tab_cv:
@@ -143,10 +146,41 @@ with tab_ocr:
 with tab_nlp:
     nlp_data = render_nlp_tab(default_text=selected_call_text)
 
+    # Render Deterministic Multimodal Accident Evidence Assessment
+    st.divider()
+    st.subheader("⚖️ Multimodal Accident Evidence Assessment (Deterministic)")
+    accident_assessment = assess_accident_evidence(
+        cv_candidates=cv_data.get("candidates", []) if cv_data else [],
+        cv_diagnostics=cv_data.get("diagnostics", {}) if cv_data else {},
+        nlp_analysis=nlp_data,
+    )
+
+    tier = accident_assessment["assessment_category"]
+    if tier == "ACCIDENT EVIDENCE DETECTED":
+        st.error(f"🔴 **ASSESSMENT: {tier}**")
+    elif tier == "POSSIBLE ACCIDENT":
+        st.warning(f"🟠 **ASSESSMENT: {tier}**")
+    elif tier == "INCONCLUSIVE":
+        st.info(f"🟡 **ASSESSMENT: {tier}**")
+    else:
+        st.success(f"🟢 **ASSESSMENT: {tier}**")
+
+    st.markdown(f"**Rationale**: {accident_assessment['rationale']}")
+    st.caption(accident_assessment["safety_disclaimer"])
+
+with tab_sos:
+    sos_location = render_sos_location_component()
+    st.divider()
+    urgency = nlp_data.get("urgency_level", "HIGH") if nlp_data else "HIGH"
+    routing_data = render_hospital_routing_tab(sos_location, urgency_level=urgency)
+
 with tab_report:
     render_report_tab(
         cv_diagnostics=cv_data.get("diagnostics") if cv_data else None,
         cv_candidates=cv_data.get("candidates") if cv_data else None,
         ocr_result=ocr_data,
         nlp_analysis=nlp_data,
+        sos_location=sos_location,
+        hospital_data=routing_data,
+        accident_assessment=accident_assessment,
     )
