@@ -119,13 +119,6 @@ class ClassicalPlateReader:
         validation = best["validation"]
         mean_similarity = best["mean_similarity"]
 
-        if validation["is_valid"] and mean_similarity >= self.verification_threshold:
-            status, is_verified = "VERIFIED", True
-        elif validation["is_valid"] or mean_similarity >= 0.50:
-            status, is_verified = "UNVERIFIED", False
-        else:
-            status, is_verified = "UNREADABLE", False
-
         normalized_text = (
             validation["normalized"] if validation["is_valid"] else best["raw_text"]
         )
@@ -133,6 +126,20 @@ class ClassicalPlateReader:
         if ground_truth:
             gt_clean = "".join(ch for ch in ground_truth.upper() if ch.isalnum())
             exact_match = normalized_text == gt_clean
+
+        # A format-shaped string and a high template score are not proof of
+        # identity. "VERIFIED" is reserved for an exact match to supplied,
+        # trusted ground truth; otherwise the output remains unverified.
+        if (
+            validation["is_valid"]
+            and mean_similarity >= self.verification_threshold
+            and exact_match
+        ):
+            status, is_verified = "VERIFIED", True
+        elif validation["is_valid"] or mean_similarity >= 0.50:
+            status, is_verified = "UNVERIFIED", False
+        else:
+            status, is_verified = "UNREADABLE", False
 
         return {
             "status": status,
