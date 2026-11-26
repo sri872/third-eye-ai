@@ -9,7 +9,7 @@ import cv2
 import numpy as np
 
 
-def load_image(source: Any) -> Tuple[np.ndarray, np.ndarray]:
+def load_image(source: Any, rotation_degrees: int = 0) -> Tuple[np.ndarray, np.ndarray]:
     """Load and validate an image from file path or raw bytes.
 
     Returns:
@@ -38,10 +38,17 @@ def load_image(source: Any) -> Tuple[np.ndarray, np.ndarray]:
     if image is None or image.size == 0 or image.shape[0] == 0 or image.shape[1] == 0:
         raise ValueError("Decoded image is empty or invalid.")
 
-    # Fix orientation if needed (e.g. portrait aspect ratio where height > width * 1.3)
-    h, w = image.shape[:2]
-    if h > w * 1.3:
-        image = cv2.rotate(image, cv2.ROTATE_90_CLOCKWISE)
+    # Do not infer orientation from aspect ratio: valid portrait photos must stay portrait.
+    # OpenCV applies supported EXIF orientation metadata while decoding image files.
+    rotations = {
+        90: cv2.ROTATE_90_CLOCKWISE,
+        180: cv2.ROTATE_180,
+        270: cv2.ROTATE_90_COUNTERCLOCKWISE,
+    }
+    if rotation_degrees not in (0, 90, 180, 270):
+        raise ValueError("rotation_degrees must be one of 0, 90, 180, or 270.")
+    if rotation_degrees:
+        image = cv2.rotate(image, rotations[rotation_degrees])
 
     rgb = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
     return image, rgb
