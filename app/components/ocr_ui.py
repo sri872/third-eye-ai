@@ -80,6 +80,7 @@ def render_ocr_tab(
     # Evaluate a bounded shortlist to avoid spending excessive time on hundreds
     # of false contour blobs. The localization list is already score-ranked.
     shortlist = plates[:16]
+    proposal_indices = {id(candidate): idx + 1 for idx, candidate in enumerate(plates)}
     evaluated = []
     progress = st.progress(0, text="Evaluating plate-shaped candidates...")
     for idx, candidate in enumerate(shortlist):
@@ -101,7 +102,7 @@ def render_ocr_tab(
         validation = result.get("validation") or {}
         rows.append({
             "Rank": idx,
-            "Candidate": f"#{plates.index(candidate) + 1}",
+            "Candidate": f"#{proposal_indices[id(candidate)]}",
             "BBox (x, y, w, h)": tuple(candidate["bbox"]),
             "Proposal score": candidate["score"],
             "OCR text": result.get("raw_text") or "—",
@@ -135,7 +136,7 @@ def render_ocr_tab(
         st.markdown("#### Selected plate crop")
         st.image(
             cv2.cvtColor(selected_candidate["crop"], cv2.COLOR_BGR2RGB),
-            caption=f"Proposal #{plates.index(selected_candidate) + 1} — {selected_candidate['method']}",
+            caption=f"Proposal #{proposal_indices[id(selected_candidate)]} — {selected_candidate['method']}",
             use_container_width=True,
         )
         if ocr_result.get("enhanced_gray") is not None:
